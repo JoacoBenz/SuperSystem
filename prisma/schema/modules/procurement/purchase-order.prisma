@@ -1,0 +1,28 @@
+model PurchaseOrder {
+  id                Int       @id @default(autoincrement())
+  tenantId          Int       @map("tenant_id")
+  purchaseRequestId Int       @map("purchase_request_id")
+  executedById      Int       @map("executed_by_id")
+  vendorId          Int?      @map("vendor_id")
+  vendorName        String    @map("vendor_name") @db.VarChar(255)
+  vendorDetails     String?   @map("vendor_details")
+  purchaseDate      DateTime  @map("purchase_date") @db.Date
+  totalAmount       Decimal   @map("total_amount") @db.Decimal(15, 2)
+  paymentMethod     String    @map("payment_method") @db.VarChar(50)
+  bankReference     String?   @map("bank_reference") @db.VarChar(100)
+  invoiceNumber     String?   @map("invoice_number") @db.VarChar(50)
+  notes             String?
+  version           Int       @default(1)
+  deletedAt         DateTime? @map("deleted_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  createdBy         Int?      @map("created_by")
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  vendor          Vendor?         @relation(fields: [vendorId], references: [id])
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, purchaseRequestId])
+  @@index([tenantId, purchaseDate])
+  @@map("purchase_orders")
+}

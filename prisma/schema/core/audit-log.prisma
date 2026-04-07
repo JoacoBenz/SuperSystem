@@ -1,0 +1,25 @@
+model AuditLog {
+  id           BigInt   @id @default(autoincrement())
+  tenantId     Int      @map("tenant_id")
+  userId       Int      @map("user_id")
+  moduleId     String?  @map("module_id") @db.VarChar(50)
+  eventType    String   @map("event_type") @db.VarChar(30)
+  action       String   @db.VarChar(50)
+  resource     String   @db.VarChar(50)
+  resourceId   Int?     @map("resource_id")
+  previousData Json?    @map("previous_data")
+  newData      Json?    @map("new_data")
+  metadata     Json?
+  ipAddress    String?  @map("ip_address") @db.VarChar(45)
+  userAgent    String?  @map("user_agent") @db.VarChar(500)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, resource, resourceId])
+  @@index([tenantId, eventType])
+  @@index([tenantId, userId])
+  @@map("audit_logs")
+}

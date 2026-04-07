@@ -1,0 +1,19 @@
+model Notification {
+  id           Int      @id @default(autoincrement())
+  tenantId     Int      @map("tenant_id")
+  recipientId  Int      @map("recipient_id")
+  moduleId     String?  @map("module_id") @db.VarChar(50)
+  type         String   @db.VarChar(50)
+  title        String   @db.VarChar(255)
+  message      String?
+  read         Boolean  @default(false)
+  resourceType String?  @map("resource_type") @db.VarChar(50)
+  resourceId   Int?     @map("resource_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipient User   @relation(fields: [recipientId], references: [id])
+
+  @@index([tenantId, recipientId, read])
+  @@map("notifications")
+}

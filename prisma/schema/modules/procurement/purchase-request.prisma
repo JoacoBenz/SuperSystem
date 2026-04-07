@@ -1,0 +1,90 @@
+model PurchaseRequest {
+  id             Int       @id @default(autoincrement())
+  tenantId       Int       @map("tenant_id")
+  number         String    @db.VarChar(20)
+  title          String    @db.VarChar(255)
+  description    String
+  justification  String
+  urgency        String    @default("normal") @db.VarChar(20)
+  estimatedTotal Decimal?  @map("estimated_total") @db.Decimal(15, 2)
+  status         String    @default("draft") @db.VarChar(30)
+  requesterId    Int       @map("requester_id")
+  departmentId   Int       @map("department_id")
+  vendorId       Int?      @map("vendor_id")
+  costCenterId   Int?      @map("cost_center_id")
+
+  // Workflow tracking
+  validatedById Int?      @map("validated_by_id")
+  validatedAt   DateTime? @map("validated_at")
+  approvedById  Int?      @map("approved_by_id")
+  approvedAt    DateTime? @map("approved_at")
+  rejectedById  Int?      @map("rejected_by_id")
+  rejectedAt    DateTime? @map("rejected_at")
+  rejectionReason String? @map("rejection_reason")
+  submittedAt   DateTime? @map("submitted_at")
+
+  // Procurement processing
+  processedById        Int?      @map("processed_by_id")
+  processedAt          DateTime? @map("processed_at")
+  purchasePriority     String?   @map("purchase_priority") @db.VarChar(20)
+  scheduledPaymentDate DateTime? @map("scheduled_payment_date") @db.Date
+  processingNotes      String?   @map("processing_notes")
+
+  // Validator/approver notes
+  validationNotes String? @map("validation_notes")
+  approvalNotes   String? @map("approval_notes")
+
+  // Metadata
+  version   Int       @default(1)
+  deletedAt DateTime? @map("deleted_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  createdBy Int?      @map("created_by")
+  updatedBy Int?      @map("updated_by")
+
+  vendor     Vendor?     @relation(fields: [vendorId], references: [id])
+  costCenter CostCenter? @relation(fields: [costCenterId], references: [id])
+
+  items      PurchaseRequestItem[]
+  orders     PurchaseOrder[]
+  receptions Reception[]
+  comments   PurchaseRequestComment[]
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, number])
+  @@index([tenantId, status])
+  @@index([tenantId, requesterId])
+  @@index([tenantId, departmentId])
+  @@index([tenantId, status, departmentId])
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestItem {
+  id                Int      @id @default(autoincrement())
+  tenantId          Int      @map("tenant_id")
+  purchaseRequestId Int      @map("purchase_request_id")
+  description       String   @db.VarChar(255)
+  quantity          Decimal  @db.Decimal(10, 2)
+  unit              String   @default("units") @db.VarChar(50)
+  estimatedPrice    Decimal? @map("estimated_price") @db.Decimal(15, 2)
+  productUrl        String?  @map("product_url") @db.VarChar(500)
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  receptionItems  ReceptionItem[]
+
+  @@map("purchase_request_items")
+}
+
+model PurchaseRequestComment {
+  id                Int      @id @default(autoincrement())
+  tenantId          Int      @map("tenant_id")
+  purchaseRequestId Int      @map("purchase_request_id")
+  userId            Int      @map("user_id")
+  message           String
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, purchaseRequestId])
+  @@map("purchase_request_comments")
+}

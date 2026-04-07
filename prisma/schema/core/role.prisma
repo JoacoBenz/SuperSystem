@@ -1,0 +1,69 @@
+model Role {
+  id          Int     @id @default(autoincrement())
+  tenantId    Int?    @map("tenant_id")
+  name        String  @db.VarChar(100)
+  displayName String  @map("display_name") @db.VarChar(150)
+  moduleId    String? @map("module_id") @db.VarChar(50)
+  isSystem    Boolean @default(false) @map("is_system")
+  description String?
+
+  userRoles       UserRole[]
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, name])
+  @@map("roles")
+}
+
+model Permission {
+  id          Int    @id @default(autoincrement())
+  moduleId    String @map("module_id") @db.VarChar(50)
+  resource    String @db.VarChar(100)
+  action      String @db.VarChar(50)
+  description String?
+
+  rolePermissions RolePermission[]
+
+  @@unique([moduleId, resource, action])
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       Int @map("role_id")
+  permissionId Int @map("permission_id")
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+model UserRole {
+  userId Int @map("user_id")
+  roleId Int @map("role_id")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model Delegation {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  delegatorId Int      @map("delegator_id")
+  delegateId  Int      @map("delegate_id")
+  roleId      Int      @map("role_id")
+  startDate   DateTime @map("start_date") @db.Date
+  endDate     DateTime @map("end_date") @db.Date
+  reason      String?  @db.VarChar(255)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  delegator User @relation("delegation_delegator", fields: [delegatorId], references: [id])
+  delegate  User @relation("delegation_delegate", fields: [delegateId], references: [id])
+
+  @@index([tenantId, delegateId, active])
+  @@map("delegations")
+}

@@ -1,0 +1,31 @@
+model Reception {
+  id                Int      @id @default(autoincrement())
+  tenantId          Int      @map("tenant_id")
+  purchaseRequestId Int      @map("purchase_request_id")
+  receiverId        Int      @map("receiver_id")
+  receivedAt        DateTime @default(now()) @map("received_at")
+  conforming        Boolean
+  issueType         String?  @map("issue_type") @db.VarChar(50)
+  notes             String?
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  purchaseRequest PurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  items           ReceptionItem[]
+
+  @@map("receptions")
+}
+
+model ReceptionItem {
+  id                    Int     @id @default(autoincrement())
+  tenantId              Int     @map("tenant_id")
+  receptionId           Int     @map("reception_id")
+  purchaseRequestItemId Int     @map("purchase_request_item_id")
+  quantityReceived      Decimal @map("quantity_received") @db.Decimal(10, 2)
+  conforming            Boolean @default(true)
+  notes                 String?
+
+  reception           Reception           @relation(fields: [receptionId], references: [id], onDelete: Cascade)
+  purchaseRequestItem PurchaseRequestItem @relation(fields: [purchaseRequestItemId], references: [id])
+
+  @@map("reception_items")
+}

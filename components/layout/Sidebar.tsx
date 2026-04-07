@@ -1,175 +1,164 @@
 'use client';
 
+import { Layout, Menu, Spin } from 'antd';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { Layout, Menu } from 'antd';
 import {
   DashboardOutlined,
+  SettingOutlined,
+  UserOutlined,
+  ApartmentOutlined,
+  SafetyOutlined,
+  AppstoreOutlined,
+  FileSearchOutlined,
+  ShoppingCartOutlined,
+  InboxOutlined,
+  ShopOutlined,
+  BankOutlined,
   PlusCircleOutlined,
   FileTextOutlined,
   CheckCircleOutlined,
-  ThunderboltOutlined,
-  DollarOutlined,
-  InboxOutlined,
-  TeamOutlined,
-  ApartmentOutlined,
-  ShopOutlined,
-  ShoppingCartOutlined,
-  BankOutlined,
-  GlobalOutlined,
   AuditOutlined,
-  KeyOutlined,
-  SettingOutlined,
 } from '@ant-design/icons';
-import { usePathname, useRouter } from 'next/navigation';
-import type { RolNombre } from '@/types';
+import type { NavigationItem } from '@/src/core/modules/types';
 
 const { Sider } = Layout;
 
+const ICON_MAP: Record<string, React.ReactNode> = {
+  PlusCircleOutlined: <PlusCircleOutlined />,
+  FileTextOutlined: <FileTextOutlined />,
+  CheckCircleOutlined: <CheckCircleOutlined />,
+  AuditOutlined: <AuditOutlined />,
+  ShoppingCartOutlined: <ShoppingCartOutlined />,
+  InboxOutlined: <InboxOutlined />,
+  ShopOutlined: <ShopOutlined />,
+  BankOutlined: <BankOutlined />,
+};
+
+const MODULE_LABELS: Record<string, string> = {
+  procurement: 'Procurement',
+  inventory: 'Inventory',
+  sales: 'Sales',
+  accounting: 'Accounting',
+  hr: 'HR',
+  payroll: 'Payroll',
+  treasury: 'Treasury',
+  budget: 'Budget',
+  crm: 'CRM',
+  projects: 'Projects',
+};
+
 interface SidebarProps {
-  roles: RolNombre[];
-  pendientes?: {
-    validaciones?: number;
-    aprobaciones?: number;
-    compras?: number;
-    recepciones?: number;
-  };
   collapsed: boolean;
+  orgRole: string;
 }
 
-export function Sidebar({ roles, pendientes = {}, collapsed }: SidebarProps) {
+export function Sidebar({ collapsed, orgRole }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [pulse, setPulse] = useState(true);
+  const [moduleItems, setModuleItems] = useState<NavigationItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setPulse(false), 800);
-    return () => clearTimeout(timer);
+    fetch('/api/v1/core/modules?type=navigation')
+      .then(res => res.json())
+      .then(data => {
+        setModuleItems(Array.isArray(data) ? data : []);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
-  const items = [
-    { key: '/', icon: <DashboardOutlined />, label: 'Dashboard', visible: true },
-    { key: '/solicitudes/nueva', icon: <PlusCircleOutlined />, label: 'Nueva Solicitud', visible: roles.includes('solicitante') },
-    { key: '/solicitudes', icon: <FileTextOutlined />, label: roles.includes('director') || roles.includes('admin') || roles.includes('tesoreria') ? 'Solicitudes' : 'Mis Solicitudes', visible: roles.includes('solicitante') || roles.includes('director') || roles.includes('admin') || roles.includes('tesoreria') || roles.includes('responsable_area') || roles.includes('compras') },
+  const coreItems = [
+    { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
+  ];
+
+  // Super admin: platform management only, no module operations
+  // Admin: tenant administration + module navigation
+  // Member: module navigation only
+
+  const adminChildren = [
+    { key: '/admin/users', icon: <UserOutlined />, label: 'Users' },
+    { key: '/admin/departments', icon: <ApartmentOutlined />, label: 'Departments' },
+    { key: '/admin/roles', icon: <SafetyOutlined />, label: 'Roles' },
+    { key: '/admin/modules', icon: <AppstoreOutlined />, label: 'Modules' },
+    { key: '/admin/sso', icon: <SettingOutlined />, label: 'SSO Settings' },
+  ];
+
+  const superAdminItems = orgRole === 'super_admin' ? [
     {
-      key: '/validaciones',
-      icon: <CheckCircleOutlined />,
-      label: pendientes.validaciones ? `Validaciones (${pendientes.validaciones})` : 'Validaciones',
-      visible: roles.includes('responsable_area'),
-    },
-    {
-      key: '/aprobaciones',
-      icon: <ThunderboltOutlined />,
-      label: pendientes.aprobaciones ? `Aprobaciones (${pendientes.aprobaciones})` : 'Aprobaciones',
-      visible: roles.includes('director'),
-    },
-    {
-      key: '/compras',
-      icon: <DollarOutlined />,
-      label: pendientes.compras ? `Compras (${pendientes.compras})` : 'Compras',
-      visible: roles.includes('tesoreria'),
-    },
-    {
-      key: '/recepciones',
-      icon: <InboxOutlined />,
-      label: pendientes.recepciones ? `Recepciones (${pendientes.recepciones})` : 'Recepciones',
-      visible: roles.includes('solicitante') || roles.includes('responsable_area'),
-    },
-    {
-      key: '/gestion-compras',
-      icon: <ShoppingCartOutlined />,
-      label: pendientes.compras ? `Gestión Compras (${pendientes.compras})` : 'Gestión Compras',
-      visible: roles.includes('compras'),
-    },
-    { key: '/proveedores', icon: <ShopOutlined />, label: 'Proveedores', visible: true },
-    {
-      type: 'group' as const,
-      label: collapsed ? '—' : 'Administración',
-      visible: roles.includes('admin') || roles.includes('director'),
+      key: '/admin',
+      icon: <SettingOutlined />,
+      label: 'Platform',
       children: [
-        { key: '/admin/usuarios', icon: <TeamOutlined />, label: 'Usuarios' },
-        { key: '/admin/areas', icon: <ApartmentOutlined />, label: 'Áreas' },
-        { key: '/admin/centros-costo', icon: <BankOutlined />, label: 'Centros de Costo' },
-        { key: '/admin/invitaciones', icon: <KeyOutlined />, label: 'Invitaciones' },
-        { key: '/admin/configuracion-sso', icon: <SettingOutlined />, label: 'Config SSO' },
-        ...(roles.includes('admin') ? [
-          { key: '/admin/aprobaciones-org', icon: <AuditOutlined />, label: 'Aprobaciones Org' },
-          { key: '/admin/tenants', icon: <GlobalOutlined />, label: 'Organizaciones' },
-        ] : []),
+        { key: '/admin/tenants', icon: <AppstoreOutlined />, label: 'Tenants' },
+        ...adminChildren,
       ],
     },
-  ]
-    .filter((item) => item.visible)
-    .map(({ visible, ...item }) => item);
+    { key: '/admin/audit', icon: <FileSearchOutlined />, label: 'Audit Log' },
+  ] : [];
 
-  const selectedKey = items.find(item => 'key' in item && pathname.startsWith(item.key as string) && item.key !== '/')?.key as string
-    ?? (pathname === '/' ? '/' : undefined);
+  const adminItems = orgRole === 'admin' ? [
+    {
+      key: '/admin',
+      icon: <SettingOutlined />,
+      label: 'Administration',
+      children: adminChildren,
+    },
+    { key: '/admin/audit', icon: <FileSearchOutlined />, label: 'Audit Log' },
+  ] : [];
+
+  // Module navigation: only for admin and member, NOT for super_admin
+  const dynamicItems: typeof coreItems = [];
+  if (orgRole !== 'super_admin') {
+    const groupedModules = new Map<string, typeof moduleItems>();
+    for (const item of moduleItems) {
+      const modulePath = item.key.split('/')[1];
+      if (!groupedModules.has(modulePath)) groupedModules.set(modulePath, []);
+      groupedModules.get(modulePath)!.push(item);
+    }
+
+    for (const [modulePath, items] of groupedModules) {
+      dynamicItems.push({
+        key: `/${modulePath}`,
+        icon: ICON_MAP[items[0]?.icon] || <AppstoreOutlined />,
+        label: MODULE_LABELS[modulePath] ?? modulePath,
+        children: items.map(item => ({
+          key: item.key,
+          icon: ICON_MAP[item.icon] || <AppstoreOutlined />,
+          label: item.label,
+        })),
+      } as any);
+    }
+  }
+
+  const menuItems = [...coreItems, ...dynamicItems, ...superAdminItems, ...adminItems];
+
+  // Find the open submenu key based on current path
+  const openKey = '/' + (pathname.split('/')[1] ?? '');
 
   return (
-    <>
-      <style>{`
-        @keyframes sidebarPulse {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.15); }
-          100% { transform: scale(1); }
-        }
-        .sidebar-icon-pulse {
-          animation: sidebarPulse 0.6s ease-in-out 1;
-        }
-        .ant-layout-sider {
-          transition: width 0.25s cubic-bezier(0.2, 0, 0, 1) !important;
-        }
-        .sidebar-menu .ant-menu-item-selected {
-          border-left: 3px solid #4f46e5;
-        }
-      `}</style>
-      <Sider
-        collapsible
-        collapsed={collapsed}
-        trigger={null}
-        width={240}
-        style={{
-          background: 'linear-gradient(180deg, #fafbff 0%, #f1f0ff 100%)',
-          borderRight: 'none',
-        }}
-      >
-        <div style={{
-          height: 64,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          borderBottom: '1px solid #f1f5f9',
-        }}>
-          <div
-            className={pulse ? 'sidebar-icon-pulse' : undefined}
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 10,
-              background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <path d="M16 10a4 4 0 01-8 0" />
-            </svg>
-          </div>
-          {!collapsed && <span style={{ fontWeight: 700, fontSize: 15, color: '#1e293b', letterSpacing: '-0.3px' }}>BoxZenj</span>}
-        </div>
+    <Sider
+      trigger={null}
+      collapsible
+      collapsed={collapsed}
+      style={{ minHeight: '100vh' }}
+    >
+      <div style={{ height: 32, margin: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: collapsed ? 14 : 18 }}>
+        {collapsed ? 'ERP' : 'ERP Platform'}
+      </div>
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 20 }}><Spin size="small" /></div>
+      ) : (
         <Menu
-          className="sidebar-menu"
+          theme="dark"
           mode="inline"
-          selectedKeys={selectedKey ? [selectedKey] : []}
-          style={{ border: 'none', padding: '12px 4px', background: 'transparent' }}
-          items={items}
+          selectedKeys={[pathname]}
+          defaultOpenKeys={[openKey]}
+          items={menuItems}
           onClick={({ key }) => router.push(key)}
         />
-      </Sider>
-    </>
+      )}
+    </Sider>
   );
 }

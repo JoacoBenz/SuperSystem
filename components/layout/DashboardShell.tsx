@@ -1,48 +1,38 @@
 'use client';
 
+import { Layout } from 'antd';
 import { useState } from 'react';
-import { App, Layout } from 'antd';
 import { Sidebar } from './Sidebar';
-import { AppHeader } from './Header';
-import type { RolNombre } from '@/types';
+import { Header } from './Header';
+import { TenantSwitcherProvider } from '@/components/providers/TenantSwitcher';
 
 const { Content } = Layout;
 
 interface DashboardShellProps {
-  tenantNombre: string;
   userName: string;
-  areaNombre: string | null;
-  roles: RolNombre[];
+  orgRole: string;
   children: React.ReactNode;
 }
 
-export function DashboardShell({ tenantNombre, userName, areaNombre, roles, children }: DashboardShellProps) {
+export function DashboardShell({ userName, orgRole, children }: DashboardShellProps) {
   const [collapsed, setCollapsed] = useState(false);
-  const rolPrincipal = roles.includes('admin') ? 'admin'
-    : roles.includes('director') ? 'director'
-    : roles.includes('tesoreria') ? 'tesoreria'
-    : roles.includes('responsable_area') ? 'responsable_area'
-    : 'solicitante';
 
   return (
-    <App>
-      <Layout style={{ minHeight: '100vh' }}>
-        <Sidebar roles={roles} collapsed={collapsed} />
-        <Layout style={{ background: '#f1f5f9' }}>
-          <AppHeader
-            tenantNombre={tenantNombre}
-            userName={userName}
-            areaNombre={areaNombre}
-            rolPrincipal={rolPrincipal}
-            roles={roles}
-            collapsed={collapsed}
-            onToggle={() => setCollapsed(!collapsed)}
-          />
-          <Content style={{ margin: '20px 24px 24px', minHeight: 280 }}>
+    <Layout style={{ minHeight: '100vh' }}>
+      <Sidebar collapsed={collapsed} orgRole={orgRole} />
+      <Layout>
+        <Header
+          collapsed={collapsed}
+          setCollapsed={setCollapsed}
+          userName={userName}
+          orgRole={orgRole}
+        />
+        <TenantSwitcherProvider orgRole={orgRole}>
+          <Content style={{ margin: 24, padding: 24, minHeight: 280 }}>
             {children}
           </Content>
-        </Layout>
+        </TenantSwitcherProvider>
       </Layout>
-    </App>
+    </Layout>
   );
 }

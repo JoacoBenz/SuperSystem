@@ -1,13 +1,27 @@
-import { Tag } from 'antd';
-import { ESTADOS_SOLICITUD, URGENCIAS } from '@/types';
-import type { EstadoSolicitud, UrgenciaSolicitud } from '@/types';
+'use client';
 
-export function StatusBadge({ estado }: { estado: EstadoSolicitud }) {
-  const config = ESTADOS_SOLICITUD[estado] ?? { label: estado, color: 'default' };
-  return <Tag color={config.color}>{config.label}</Tag>;
+import { Tag } from 'antd';
+
+interface StatusBadgeProps {
+  status: string;
+  labels?: Record<string, string>;
+  colors?: Record<string, string>;
 }
 
-export function UrgenciaBadge({ urgencia }: { urgencia: UrgenciaSolicitud }) {
-  const config = URGENCIAS[urgencia] ?? { label: urgencia, color: 'default' };
-  return <Tag color={config.color}>{config.label}</Tag>;
+const DEFAULT_COLORS: Record<string, string> = {
+  draft: 'default',
+  active: 'success',
+  inactive: 'default',
+  pending: 'processing',
+  approved: 'blue',
+  rejected: 'red',
+  cancelled: 'default',
+  closed: 'success',
+};
+
+export function StatusBadge({ status, labels, colors }: StatusBadgeProps) {
+  const label = labels?.[status] ?? status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  const color = colors?.[status] ?? DEFAULT_COLORS[status] ?? 'default';
+
+  return <Tag color={color}>{label}</Tag>;
 }
