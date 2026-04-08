@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Form, Input, Button, Typography, message } from 'antd';
+import { Card, Form, Input, Button, Typography, App } from 'antd';
 import { UserOutlined, LockOutlined, MailOutlined, KeyOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -10,6 +10,7 @@ const { Title, Text, Link } = Typography;
 export default function JoinPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { message } = App.useApp();
 
   async function handleSubmit(values: { code: string; name: string; email: string; password: string }) {
     setLoading(true);

@@ -23,8 +23,8 @@ interface WorkflowTimelineProps {
 export function WorkflowTimeline({ entries, currentState, availableActions = [], onAction, loading }: WorkflowTimelineProps) {
   const items = entries.map((entry, index) => ({
     color: index === entries.length - 1 ? 'blue' : 'green',
-    dot: index === entries.length - 1 ? <ClockCircleOutlined /> : <CheckCircleOutlined />,
-    children: (
+    icon: index === entries.length - 1 ? <ClockCircleOutlined /> : <CheckCircleOutlined />,
+    content: (
       <div>
         <Text strong>{entry.label}</Text>
         {entry.actor && <Text type="secondary" style={{ marginLeft: 8 }}>by {entry.actor}</Text>}

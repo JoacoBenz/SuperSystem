@@ -1,6 +1,6 @@
 'use client';
 
-import { Table, Button, Space, Typography, Row, Col, Modal, Form, Input, InputNumber, message, Popconfirm, Tag } from 'antd';
+import { Table, Button, Space, Typography, Row, Col, Modal, Form, Input, InputNumber, App, Popconfirm, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -16,6 +16,7 @@ export default function CostCentersPage() {
   const [editing, setEditing] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
+  const { message } = App.useApp();
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -128,6 +129,7 @@ export default function CostCentersPage() {
         dataSource={data}
         rowKey="id"
         loading={loading}
+        size="small"
         pagination={{
           current: page, pageSize, total,
           onChange: (p, ps) => { setPage(p); setPageSize(ps); },

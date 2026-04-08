@@ -69,6 +69,7 @@ export default function ReceptionsPage() {
         dataSource={data}
         rowKey="id"
         loading={loading}
+        size="small"
         pagination={{
           current: page, pageSize, total,
           onChange: (p, ps) => { setPage(p); setPageSize(ps); },

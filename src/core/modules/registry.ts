@@ -46,6 +46,7 @@ class ModuleRegistry {
   async getNavigation(
     tenantId: number,
     userPermissions: Set<string>,
+    options?: { skipPermissionCheck?: boolean },
   ): Promise<NavigationItem[]> {
     const enabledIds = await this.getEnabledModuleIds(tenantId);
     const items: NavigationItem[] = [];
@@ -53,7 +54,7 @@ class ModuleRegistry {
     for (const [id, mod] of this.modules) {
       if (!enabledIds.has(id)) continue;
       for (const nav of mod.navigation) {
-        if (nav.requiredPermissions.every(p => userPermissions.has(p))) {
+        if (options?.skipPermissionCheck || nav.requiredPermissions.every(p => userPermissions.has(p))) {
           items.push(nav);
         }
       }

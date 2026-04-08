@@ -1,0 +1,16 @@
+model StockLevel {
+  id                Int     @id @default(autoincrement())
+  tenantId          Int     @map("tenant_id")
+  productId         Int     @map("product_id")
+  warehouseId       Int     @map("warehouse_id")
+  quantityOnHand    Decimal @default(0) @map("quantity_on_hand") @db.Decimal(15, 4)
+  quantityReserved  Decimal @default(0) @map("quantity_reserved") @db.Decimal(15, 4)
+  quantityAvailable Decimal @default(0) @map("quantity_available") @db.Decimal(15, 4)
+
+  product   Product   @relation(fields: [productId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@unique([tenantId, productId, warehouseId])
+  @@index([tenantId])
+  @@map("stock_levels")
+}

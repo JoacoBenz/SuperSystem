@@ -3,6 +3,7 @@ import { ok } from '@/src/core/api/response';
 import { apiError } from '@/src/core/api/errors';
 import { moduleRegistry } from '@/src/core/modules/registry';
 import { prisma } from '@/src/core/db/client';
+import { invalidateCache } from '@/src/core/cache';
 import { z } from 'zod';
 
 export const GET = withAuth(
@@ -11,17 +12,24 @@ export const GET = withAuth(
     const { query, session } = ctx;
     const type = query.get('type');
 
+    const isSuperAdmin = session.orgRole === 'super_admin';
+    const effectiveTenant = isSuperAdmin && query.has('tenant_id')
+      ? parseInt(query.get('tenant_id')!, 10)
+      : session.tenantId;
+
     if (type === 'navigation') {
+      const isAdminOrAbove = isSuperAdmin || session.orgRole === 'admin';
       const nav = await moduleRegistry.getNavigation(
-        session.tenantId,
+        effectiveTenant,
         new Set(session.permissions),
+        { skipPermissionCheck: isAdminOrAbove },
       );
       return ok(nav);
     }
 
     if (type === 'widgets') {
       const widgets = await moduleRegistry.getDashboardWidgets(
-        session.tenantId,
+        effectiveTenant,
         new Set(session.permissions),
       );
       return ok(widgets);
@@ -29,11 +37,7 @@ export const GET = withAuth(
 
     // List all modules with enabled status
     const allModules = moduleRegistry.getAll();
-    const isSuperAdmin = session.orgRole === 'super_admin';
-    const effectiveTenantId = isSuperAdmin && query.has('tenant_id')
-      ? parseInt(query.get('tenant_id')!, 10)
-      : session.tenantId;
-    const enabledIds = await moduleRegistry.getEnabledModuleIds(effectiveTenantId);
+    const enabledIds = await moduleRegistry.getEnabledModuleIds(effectiveTenant);
 
     const modules = allModules.map(m => ({
       id: m.id,
@@ -76,10 +80,13 @@ export const PATCH = withAuth(
       create: { tenantId, moduleId, enabled },
     });
 
+    // Invalidate cached enabled modules for this tenant
+    invalidateCache(`t:${tenantId}:enabled_modules`);
+
     await ctx.audit.log({
       action: enabled ? 'enable' : 'disable',
       resource: 'module',
-      resourceId: moduleId,
+      resourceId: 0,
       eventType: 'config',
       metadata: { tenantId, moduleId },
     });

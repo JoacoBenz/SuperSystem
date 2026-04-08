@@ -1,0 +1,29 @@
+model Product {
+  id             Int       @id @default(autoincrement())
+  tenantId       Int       @map("tenant_id")
+  sku            String    @db.VarChar(100)
+  name           String    @db.VarChar(255)
+  description    String?
+  categoryId     Int?      @map("category_id")
+  unitOfMeasure  String    @default("units") @map("unit_of_measure") @db.VarChar(50)
+  minStock       Decimal?  @map("min_stock") @db.Decimal(15, 4)
+  maxStock       Decimal?  @map("max_stock") @db.Decimal(15, 4)
+  costPrice      Decimal?  @map("cost_price") @db.Decimal(15, 4)
+  salePrice      Decimal?  @map("sale_price") @db.Decimal(15, 4)
+  active         Boolean   @default(true)
+  version        Int       @default(1)
+  deletedAt      DateTime? @map("deleted_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  createdBy      Int?      @map("created_by")
+  updatedBy      Int?      @map("updated_by")
+
+  category    ProductCategory? @relation(fields: [categoryId], references: [id])
+  stockLevels StockLevel[]
+  movements   StockMovement[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, name])
+  @@index([tenantId, categoryId])
+  @@map("products")
+}

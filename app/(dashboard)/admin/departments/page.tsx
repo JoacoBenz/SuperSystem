@@ -1,6 +1,6 @@
 'use client';
 
-import { Table, Button, Space, Typography, Row, Col, Modal, Form, Input, Select, message, Popconfirm, Tag } from 'antd';
+import { Table, Button, Space, Typography, Row, Col, Modal, Form, Input, Select, App, Popconfirm, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
 import { useTenantSwitcher } from '@/components/providers/TenantSwitcher';
@@ -17,6 +17,7 @@ export default function DepartmentsPage() {
   const [form] = Form.useForm();
   const [users, setUsers] = useState<any[]>([]);
   const { tenantParam } = useTenantSwitcher();
+  const { message } = App.useApp();
 
   useEffect(() => {
     const tp = tenantParam ? `?${tenantParam}&limit=200` : '?limit=200';
@@ -91,7 +92,6 @@ export default function DepartmentsPage() {
 
   const columns = [
     { title: 'Name', dataIndex: 'name', key: 'name', sorter: (a: any, b: any) => a.name.localeCompare(b.name), ...getColumnSearchProps('name') },
-    { title: 'Description', dataIndex: 'description', key: 'description', ellipsis: true, ...getColumnSearchProps('description') },
     {
       title: 'Parent', dataIndex: 'parent', key: 'parent', width: 150,
       sorter: (a: any, b: any) => (a.parent?.name ?? '').localeCompare(b.parent?.name ?? ''),
@@ -131,7 +131,7 @@ export default function DepartmentsPage() {
         </Col>
       </Row>
 
-      <Table columns={columns} dataSource={data} rowKey="id" loading={loading} pagination={false} />
+      <Table columns={columns} dataSource={data} rowKey="id" loading={loading} pagination={false} size="small" />
 
       <Modal
         title={editing ? 'Edit Department' : 'New Department'}

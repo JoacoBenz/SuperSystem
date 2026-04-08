@@ -1,6 +1,6 @@
 'use client';
 
-import { Table, Button, Space, Input, Select, Typography, Tag, Row, Col, Modal, Form, message, Popconfirm } from 'antd';
+import { Table, Button, Space, Input, Select, Typography, Tag, Row, Col, Modal, Form, App, Popconfirm } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
 import { useTenantSwitcher } from '@/components/providers/TenantSwitcher';
@@ -29,6 +29,7 @@ export default function UsersPage() {
   const [roles, setRoles] = useState<any[]>([]);
   const [departments, setDepartments] = useState<any[]>([]);
   const { tenantParam } = useTenantSwitcher();
+  const { message } = App.useApp();
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(search), 400);

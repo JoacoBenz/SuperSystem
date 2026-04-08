@@ -1,0 +1,23 @@
+model StockMovement {
+  id              Int       @id @default(autoincrement())
+  tenantId        Int       @map("tenant_id")
+  productId       Int       @map("product_id")
+  warehouseFromId Int?      @map("warehouse_from_id")
+  warehouseToId   Int?      @map("warehouse_to_id")
+  quantity        Decimal   @db.Decimal(15, 4)
+  movementType    String    @map("movement_type") @db.VarChar(50)
+  referenceType   String?   @map("reference_type") @db.VarChar(100)
+  referenceId     Int?      @map("reference_id")
+  notes           String?
+  createdBy       Int?      @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at")
+
+  product       Product    @relation(fields: [productId], references: [id])
+  warehouseFrom Warehouse? @relation("MovementFrom", fields: [warehouseFromId], references: [id])
+  warehouseTo   Warehouse? @relation("MovementTo", fields: [warehouseToId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, productId])
+  @@index([tenantId, movementType])
+  @@map("stock_movements")
+}

@@ -2,7 +2,7 @@
 
 import { Badge, Button, Popover, List, Typography, Empty } from 'antd';
 import { BellOutlined } from '@ant-design/icons';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 
 const { Text } = Typography;
 
@@ -20,28 +20,32 @@ export function NotificationBell() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
+  const openRef = useRef(open);
+  openRef.current = open;
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const [countRes, listRes] = await Promise.all([
-        fetch('/api/v1/core/notifications?count_only=true&unread=true'),
-        open ? fetch('/api/v1/core/notifications?limit=10') : Promise.resolve(null),
-      ]);
-      const countData = await countRes.json();
+      const res = await fetch('/api/v1/core/notifications?count_only=true&unread=true');
+      const countData = await res.json();
       setUnreadCount(countData.count ?? 0);
 
-      if (listRes) {
+      if (openRef.current) {
+        const listRes = await fetch('/api/v1/core/notifications?limit=10');
         const listData = await listRes.json();
         setNotifications(listData.data ?? []);
       }
     } catch {}
-  }, [open]);
+  }, []);
 
   useEffect(() => {
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 30_000);
+    const interval = setInterval(fetchNotifications, 60_000);
     return () => clearInterval(interval);
   }, [fetchNotifications]);
+
+  useEffect(() => {
+    if (open) fetchNotifications();
+  }, [open, fetchNotifications]);
 
   const markAsRead = async (id: number) => {
     await fetch(`/api/v1/core/notifications/${id}`, { method: 'PATCH' });

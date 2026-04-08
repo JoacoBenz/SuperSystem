@@ -11,7 +11,7 @@ export const GET = withAuth(
     const result = await service.list({
       page: parseInt(query.get('page') ?? '1'),
       pageSize: parseInt(query.get('limit') ?? '50'),
-      active: query.get('active') !== undefined ? query.get('active') === 'true' : undefined,
+      active: query.has('active') ? query.get('active') === 'true' : undefined,
     });
     return paginated(result.data, result.total, result.page, result.totalPages);
   },

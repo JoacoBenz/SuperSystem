@@ -6,6 +6,7 @@ const TENANT_MODELS = [
   'vendor', 'costCenter', 'purchaseRequest', 'purchaseRequestItem',
   'purchaseRequestComment', 'purchaseOrder', 'reception', 'receptionItem',
   'delegation',
+  'product', 'productCategory', 'warehouse', 'stockLevel', 'stockMovement',
 ] as const;
 
 export function tenantPrisma(tenantId: number) {

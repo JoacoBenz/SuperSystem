@@ -1,6 +1,6 @@
 'use client';
 
-import { Table, Button, Space, Input, Typography, Row, Col, Modal, Form, message, Popconfirm, Tag } from 'antd';
+import { Table, Button, Space, Input, Typography, Row, Col, Modal, Form, App, Popconfirm, Tag } from 'antd';
 import { PlusOutlined, SearchOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -18,6 +18,7 @@ export default function VendorsPage() {
   const [editing, setEditing] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
+  const { message } = App.useApp();
 
   useEffect(() => {
     const timeout = setTimeout(() => setDebouncedSearch(search), 400);
@@ -92,12 +93,11 @@ export default function VendorsPage() {
 
   const columns = [
     { title: 'Name', dataIndex: 'name', key: 'name' },
-    { title: 'Tax ID', dataIndex: 'taxId', key: 'taxId', width: 120 },
-    { title: 'Email', dataIndex: 'email', key: 'email' },
-    { title: 'Phone', dataIndex: 'phone', key: 'phone', width: 130 },
-    { title: 'Website', dataIndex: 'website', key: 'website', ellipsis: true },
+    { title: 'Tax ID', dataIndex: 'taxId', key: 'taxId', width: 100 },
+    { title: 'Email', dataIndex: 'email', key: 'email', ellipsis: true },
+    { title: 'Phone', dataIndex: 'phone', key: 'phone', width: 140 },
     {
-      title: 'Active', dataIndex: 'active', key: 'active', width: 80,
+      title: 'Active', dataIndex: 'active', key: 'active', width: 70,
       render: (a: boolean) => <Tag color={a ? 'green' : 'default'}>{a ? 'Yes' : 'No'}</Tag>,
     },
     {
@@ -138,6 +138,7 @@ export default function VendorsPage() {
         dataSource={data}
         rowKey="id"
         loading={loading}
+        size="small"
         pagination={{
           current: page, pageSize, total,
           onChange: (p, ps) => { setPage(p); setPageSize(ps); },

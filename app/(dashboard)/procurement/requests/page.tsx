@@ -110,6 +110,7 @@ export default function PurchaseRequestsPage() {
         dataSource={data}
         rowKey="id"
         loading={loading}
+        size="small"
         pagination={{
           current: page,
           pageSize,

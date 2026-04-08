@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Form, Input, Select, Button, InputNumber, Space, Typography, message, Divider } from 'antd';
+import { Card, Form, Input, Select, Button, InputNumber, Space, Typography, App, Divider } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -15,6 +15,7 @@ export default function NewPurchaseRequestPage() {
   const [loading, setLoading] = useState<'draft' | 'submit' | null>(null);
   const [vendors, setVendors] = useState<any[]>([]);
   const [costCenters, setCostCenters] = useState<any[]>([]);
+  const { message } = App.useApp();
 
   useEffect(() => {
     fetch('/api/v1/procurement/vendors?active=true&limit=100').then(r => r.json()).then(d => setVendors(d.data ?? [])).catch(() => {});

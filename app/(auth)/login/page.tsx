@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Form, Input, Button, Typography, Divider, message, Space } from 'antd';
+import { Card, Form, Input, Button, Typography, Divider, App, Space } from 'antd';
 import { UserOutlined, LockOutlined, GoogleOutlined, WindowsOutlined } from '@ant-design/icons';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ const { Title, Text, Link } = Typography;
 export default function LoginPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const { message } = App.useApp();
 
   async function handleSubmit(values: { email: string; password: string }) {
     setLoading(true);

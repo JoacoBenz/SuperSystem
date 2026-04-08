@@ -1,6 +1,6 @@
 'use client';
 
-import { Table, Typography, Tag, Switch, message } from 'antd';
+import { Table, Typography, Tag, Switch, App } from 'antd';
 import { useEffect, useState } from 'react';
 import { useTenantSwitcher } from '@/components/providers/TenantSwitcher';
 import { useColumnSearch } from '@/components/ui/columnSearch';
@@ -25,6 +25,7 @@ export default function ModulesPage() {
   const [loading, setLoading] = useState(true);
   const [toggling, setToggling] = useState<string | null>(null);
   const { tenantParam, selectedTenantId } = useTenantSwitcher();
+  const { message } = App.useApp();
 
   const fetchModules = async () => {
     setLoading(true);

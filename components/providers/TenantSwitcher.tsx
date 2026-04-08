@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { usePathname } from 'next/navigation';
 import { Select, Space, Typography, Tag } from 'antd';
 import { SwapOutlined } from '@ant-design/icons';
@@ -16,13 +16,15 @@ interface Tenant {
 
 interface TenantSwitcherContextType {
   selectedTenantId: number | null;
-  tenantParam: string; // "&tenant_id=X" or "" for use in URL params
+  setSelectedTenantId: (id: number) => void;
+  tenantParam: string;
   tenants: Tenant[];
   loading: boolean;
 }
 
 const TenantSwitcherContext = createContext<TenantSwitcherContextType>({
   selectedTenantId: null,
+  setSelectedTenantId: () => {},
   tenantParam: '',
   tenants: [],
   loading: true,
@@ -63,43 +65,49 @@ export function TenantSwitcherProvider({ orgRole, children }: TenantSwitcherProv
       .finally(() => setLoading(false));
   }, [orgRole]);
 
-  const pathname = usePathname();
-  const hideSwitcher = pathname === '/admin/tenants' || pathname === '/';
-
   const tenantParam = orgRole === 'super_admin' && selectedTenantId
     ? `tenant_id=${selectedTenantId}`
     : '';
 
   return (
-    <TenantSwitcherContext.Provider value={{ selectedTenantId, tenantParam, tenants, loading }}>
-      {orgRole === 'super_admin' && tenants.length > 0 && !hideSwitcher && (
-        <div style={{
-          padding: '8px 16px',
-          background: 'var(--ant-color-bg-container)',
-          borderBottom: '1px solid var(--ant-color-border-secondary)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}>
-          <SwapOutlined style={{ color: 'var(--ant-color-primary)' }} />
-          <Text strong style={{ whiteSpace: 'nowrap' }}>Viewing tenant:</Text>
-          <Select
-            value={selectedTenantId}
-            onChange={setSelectedTenantId}
-            style={{ minWidth: 220 }}
-            options={tenants.map(t => ({
-              value: t.id,
-              label: (
-                <Space>
-                  <span>{t.name}</span>
-                  <Tag color={t.status === 'active' ? 'green' : 'red'} style={{ marginInlineEnd: 0 }}>{t.slug}</Tag>
-                </Space>
-              ),
-            }))}
-          />
-        </div>
-      )}
+    <TenantSwitcherContext.Provider value={{ selectedTenantId, setSelectedTenantId, tenantParam, tenants, loading }}>
       {children}
     </TenantSwitcherContext.Provider>
+  );
+}
+
+export function TenantSwitcherBar() {
+  const { selectedTenantId, setSelectedTenantId, tenants } = useTenantSwitcher();
+  const pathname = usePathname();
+
+  const hideSwitcher = pathname === '/admin/tenants' || pathname === '/';
+  if (tenants.length === 0 || hideSwitcher) return null;
+
+  return (
+    <div style={{
+      padding: '8px 16px',
+      background: 'var(--ant-color-bg-container)',
+      borderBottom: '1px solid var(--ant-color-border-secondary)',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 12,
+    }}>
+      <SwapOutlined style={{ color: 'var(--ant-color-primary)' }} />
+      <Text strong style={{ whiteSpace: 'nowrap' }}>Viewing tenant:</Text>
+      <Select
+        value={selectedTenantId}
+        onChange={setSelectedTenantId}
+        style={{ minWidth: 220 }}
+        options={tenants.map(t => ({
+          value: t.id,
+          label: (
+            <Space>
+              <span>{t.name}</span>
+              <Tag color={t.status === 'active' ? 'green' : 'red'} style={{ marginInlineEnd: 0 }}>{t.slug}</Tag>
+            </Space>
+          ),
+        }))}
+      />
+    </div>
   );
 }

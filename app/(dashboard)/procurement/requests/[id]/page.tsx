@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Descriptions, Typography, Divider, Table, message, Modal, Input, Space, Spin } from 'antd';
+import { Card, Descriptions, Typography, Divider, Table, App, Modal, Input, Space, Spin } from 'antd';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -17,14 +17,14 @@ export default function PurchaseRequestDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [notesModal, setNotesModal] = useState<{ action: string; label: string } | null>(null);
   const [notes, setNotes] = useState('');
+  const { message } = App.useApp();
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/v1/procurement/purchase-requests?search=${id}`);
-      const data = await res.json();
-      // Try direct fetch by searching for the request number or using the items
-      // For simplicity, we'll use a transition endpoint approach
-      setPr(data.data?.[0] ?? null);
+      const res = await fetch(`/api/v1/procurement/purchase-requests/${id}`);
+      if (!res.ok) { setPr(null); return; }
+      const json = await res.json();
+      setPr(json.data ?? json ?? null);
     } catch {} finally {
       setLoading(false);
     }

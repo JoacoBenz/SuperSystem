@@ -3,16 +3,6 @@ import type { ModuleDefinition } from '@/src/core/modules/types';
 
 const plannedModules: Omit<ModuleDefinition, 'dashboardWidgets' | 'workflows' | 'reports'>[] = [
   {
-    id: 'inventory',
-    name: 'Inventory',
-    description: 'Products, warehouses, stock levels, and stock movements',
-    version: '0.0.0',
-    dependencies: [],
-    permissions: [],
-    roles: [],
-    navigation: [],
-  },
-  {
     id: 'budget',
     name: 'Budget',
     description: 'Budget planning, execution tracking, and variance analysis',

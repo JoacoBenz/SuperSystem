@@ -101,6 +101,61 @@ const PROCUREMENT_ROLES: Array<{ name: string; displayName: string; permissions:
   },
 ];
 
+const INVENTORY_PERMISSIONS = [
+  { resource: 'product', action: 'read', description: 'View products' },
+  { resource: 'product', action: 'create', description: 'Create products' },
+  { resource: 'product', action: 'manage', description: 'Create, edit, delete products' },
+  { resource: 'product_category', action: 'read', description: 'View product categories' },
+  { resource: 'product_category', action: 'manage', description: 'Manage product categories' },
+  { resource: 'warehouse', action: 'read', description: 'View warehouses' },
+  { resource: 'warehouse', action: 'manage', description: 'Manage warehouses' },
+  { resource: 'stock_level', action: 'read', description: 'View stock levels' },
+  { resource: 'stock_movement', action: 'read', description: 'View stock movements' },
+  { resource: 'stock_movement', action: 'create', description: 'Create stock movements' },
+];
+
+const INVENTORY_ROLES: Array<{ name: string; displayName: string; permissions: string[] }> = [
+  {
+    name: 'inventory.viewer',
+    displayName: 'Viewer',
+    permissions: [
+      'inventory.product.read',
+      'inventory.product_category.read',
+      'inventory.warehouse.read',
+      'inventory.stock_level.read',
+      'inventory.stock_movement.read',
+    ],
+  },
+  {
+    name: 'inventory.operator',
+    displayName: 'Operator',
+    permissions: [
+      'inventory.product.read',
+      'inventory.product_category.read',
+      'inventory.warehouse.read',
+      'inventory.stock_level.read',
+      'inventory.stock_movement.read',
+      'inventory.stock_movement.create',
+    ],
+  },
+  {
+    name: 'inventory.manager',
+    displayName: 'Manager',
+    permissions: [
+      'inventory.product.read',
+      'inventory.product.create',
+      'inventory.product.manage',
+      'inventory.product_category.read',
+      'inventory.product_category.manage',
+      'inventory.warehouse.read',
+      'inventory.warehouse.manage',
+      'inventory.stock_level.read',
+      'inventory.stock_movement.read',
+      'inventory.stock_movement.create',
+    ],
+  },
+];
+
 async function main() {
   console.log('Seeding database...');
 
@@ -303,7 +358,7 @@ async function main() {
       name: 'Pedro Buyer',
       passwordHash,
       orgRole: 'member',
-      departmentId: deptPurchasing.id,
+      departmentId: deptOps.id,
     },
   });
 
@@ -433,6 +488,197 @@ async function main() {
     },
   });
   console.log('Cost centers created');
+
+  // ===========================
+  // INVENTORY MODULE (Demo Company)
+  // ===========================
+
+  // Enable inventory module
+  await prisma.tenantModule.upsert({
+    where: { tenantId_moduleId: { tenantId: tenant.id, moduleId: 'inventory' } },
+    update: { enabled: true },
+    create: { tenantId: tenant.id, moduleId: 'inventory', enabled: true },
+  });
+  console.log('Inventory module enabled');
+
+  // Create inventory permissions
+  for (const p of INVENTORY_PERMISSIONS) {
+    const perm = await prisma.permission.upsert({
+      where: {
+        moduleId_resource_action: { moduleId: 'inventory', resource: p.resource, action: p.action },
+      },
+      update: { description: p.description },
+      create: { moduleId: 'inventory', resource: p.resource, action: p.action, description: p.description },
+    });
+    permissionMap.set(`inventory.${p.resource}.${p.action}`, perm.id);
+  }
+  console.log('Inventory permissions created');
+
+  // Create inventory roles for Demo Company
+  for (const roleDef of INVENTORY_ROLES) {
+    const role = await prisma.role.upsert({
+      where: { tenantId_name: { tenantId: tenant.id, name: roleDef.name } },
+      update: { description: roleDef.displayName, isSystem: true, moduleId: 'inventory' },
+      create: {
+        tenantId: tenant.id,
+        name: roleDef.name,
+        displayName: roleDef.displayName,
+        description: roleDef.displayName,
+        isSystem: true,
+        moduleId: 'inventory',
+      },
+    });
+    await prisma.rolePermission.deleteMany({ where: { roleId: role.id } });
+    for (const permKey of roleDef.permissions) {
+      const permId = permissionMap.get(permKey);
+      if (permId) {
+        await prisma.rolePermission.create({ data: { roleId: role.id, permissionId: permId } });
+      }
+    }
+    console.log(`Role: ${roleDef.name}`);
+  }
+
+  // Assign inventory roles: Pedro = operator, Juan = viewer, Carlos Admin = manager
+  const invRoleAssignments = [
+    { userId: buyerUser.id, roleName: 'inventory.operator' },
+    { userId: validatorUser.id, roleName: 'inventory.viewer' },
+    { userId: adminUser.id, roleName: 'inventory.manager' },
+  ];
+  for (const { userId, roleName } of invRoleAssignments) {
+    const role = await prisma.role.findUnique({
+      where: { tenantId_name: { tenantId: tenant.id, name: roleName } },
+    });
+    if (role) {
+      await prisma.userRole.upsert({
+        where: { userId_roleId: { userId, roleId: role.id } },
+        update: {},
+        create: { userId, roleId: role.id },
+      });
+    }
+  }
+  console.log('Inventory role assignments created');
+
+  // Create product categories
+  const catOffice = await prisma.productCategory.upsert({
+    where: { tenantId_name: { tenantId: tenant.id, name: 'Office Supplies' } },
+    update: {},
+    create: { tenantId: tenant.id, name: 'Office Supplies', description: 'General office supplies' },
+  });
+
+  const catIT = await prisma.productCategory.upsert({
+    where: { tenantId_name: { tenantId: tenant.id, name: 'IT Equipment' } },
+    update: {},
+    create: { tenantId: tenant.id, name: 'IT Equipment', description: 'Computers, peripherals, and accessories' },
+  });
+
+  const catCleaning = await prisma.productCategory.upsert({
+    where: { tenantId_name: { tenantId: tenant.id, name: 'Cleaning Supplies' } },
+    update: {},
+    create: { tenantId: tenant.id, name: 'Cleaning Supplies', description: 'Janitorial and cleaning products' },
+  });
+  console.log('Product categories created');
+
+  // Create warehouses
+  const whMain = await prisma.warehouse.upsert({
+    where: { tenantId_code: { tenantId: tenant.id, code: 'WH-MAIN' } },
+    update: {},
+    create: { tenantId: tenant.id, name: 'Main Warehouse', code: 'WH-MAIN', address: '100 Main St, Building A' },
+  });
+
+  const whOffice = await prisma.warehouse.upsert({
+    where: { tenantId_code: { tenantId: tenant.id, code: 'WH-OFF' } },
+    update: {},
+    create: { tenantId: tenant.id, name: 'Office Storage', code: 'WH-OFF', address: '100 Main St, Floor 2' },
+  });
+  console.log('Warehouses created');
+
+  // Create products
+  const products = [
+    { sku: 'OFF-001', name: 'A4 Paper Reams', categoryId: catOffice.id, unitOfMeasure: 'reams', costPrice: 4.50, salePrice: 5.99, minStock: 20, maxStock: 200 },
+    { sku: 'OFF-002', name: 'Ballpoint Pens (Box 50)', categoryId: catOffice.id, unitOfMeasure: 'boxes', costPrice: 8.00, salePrice: 12.00, minStock: 5, maxStock: 50 },
+    { sku: 'OFF-003', name: 'Binder Clips Assorted', categoryId: catOffice.id, unitOfMeasure: 'packs', costPrice: 3.00, salePrice: 4.50, minStock: 10, maxStock: 100 },
+    { sku: 'IT-001', name: 'USB-C Hub 7-in-1', categoryId: catIT.id, unitOfMeasure: 'units', costPrice: 25.00, salePrice: 45.00, minStock: 3, maxStock: 20 },
+    { sku: 'IT-002', name: 'Wireless Mouse', categoryId: catIT.id, unitOfMeasure: 'units', costPrice: 12.00, salePrice: 22.00, minStock: 5, maxStock: 30 },
+    { sku: 'CLN-001', name: 'All-Purpose Cleaner (1L)', categoryId: catCleaning.id, unitOfMeasure: 'bottles', costPrice: 3.50, salePrice: 5.00, minStock: 10, maxStock: 50 },
+  ];
+
+  const productRecords = [];
+  for (const p of products) {
+    const prod = await prisma.product.upsert({
+      where: { tenantId_sku: { tenantId: tenant.id, sku: p.sku } },
+      update: {},
+      create: {
+        tenantId: tenant.id,
+        sku: p.sku,
+        name: p.name,
+        categoryId: p.categoryId,
+        unitOfMeasure: p.unitOfMeasure,
+        costPrice: p.costPrice,
+        salePrice: p.salePrice,
+        minStock: p.minStock,
+        maxStock: p.maxStock,
+        createdBy: adminUser.id,
+        updatedBy: adminUser.id,
+      },
+    });
+    productRecords.push(prod);
+  }
+  console.log(`${productRecords.length} products created`);
+
+  // Create initial stock levels
+  const stockData = [
+    { productIdx: 0, warehouseId: whMain.id, onHand: 150, reserved: 10 },
+    { productIdx: 0, warehouseId: whOffice.id, onHand: 30, reserved: 0 },
+    { productIdx: 1, warehouseId: whMain.id, onHand: 25, reserved: 0 },
+    { productIdx: 2, warehouseId: whMain.id, onHand: 40, reserved: 5 },
+    { productIdx: 3, warehouseId: whMain.id, onHand: 8, reserved: 0 },
+    { productIdx: 4, warehouseId: whMain.id, onHand: 2, reserved: 0 },  // low stock!
+    { productIdx: 5, warehouseId: whMain.id, onHand: 15, reserved: 0 },
+  ];
+
+  for (const s of stockData) {
+    const prod = productRecords[s.productIdx];
+    await prisma.stockLevel.upsert({
+      where: { tenantId_productId_warehouseId: { tenantId: tenant.id, productId: prod.id, warehouseId: s.warehouseId } },
+      update: { quantityOnHand: s.onHand, quantityReserved: s.reserved, quantityAvailable: s.onHand - s.reserved },
+      create: {
+        tenantId: tenant.id,
+        productId: prod.id,
+        warehouseId: s.warehouseId,
+        quantityOnHand: s.onHand,
+        quantityReserved: s.reserved,
+        quantityAvailable: s.onHand - s.reserved,
+      },
+    });
+  }
+  console.log('Stock levels created');
+
+  // Create sample stock movements
+  const movementData = [
+    { productIdx: 0, warehouseToId: whMain.id, quantity: 100, movementType: 'receipt', notes: 'Initial stock receipt' },
+    { productIdx: 0, warehouseToId: whOffice.id, quantity: 30, movementType: 'receipt', notes: 'Office supply delivery' },
+    { productIdx: 0, warehouseFromId: whMain.id, quantity: 10, movementType: 'issue', notes: 'Issued to Operations dept' },
+    { productIdx: 3, warehouseToId: whMain.id, quantity: 10, movementType: 'receipt', notes: 'IT equipment delivery' },
+    { productIdx: 4, warehouseToId: whMain.id, quantity: 5, movementType: 'receipt', notes: 'Mouse order received' },
+    { productIdx: 4, warehouseFromId: whMain.id, quantity: 3, movementType: 'issue', notes: 'Issued to new employees' },
+  ];
+
+  for (const m of movementData) {
+    const prod = productRecords[m.productIdx];
+    await prisma.stockMovement.create({
+      data: {
+        tenantId: tenant.id,
+        productId: prod.id,
+        warehouseFromId: (m as any).warehouseFromId ?? null,
+        warehouseToId: (m as any).warehouseToId ?? null,
+        quantity: m.quantity,
+        movementType: m.movementType,
+        notes: m.notes,
+        createdBy: buyerUser.id,
+      },
+    });
+  }
+  console.log('Stock movements created');
 
   // ===========================
   // SECOND TENANT: Acme Corp

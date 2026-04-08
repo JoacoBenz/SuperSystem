@@ -3,6 +3,7 @@
 import { Layout, Menu, Spin } from 'antd';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { useTenantSwitcher } from '@/components/providers/TenantSwitcher';
 import {
   DashboardOutlined,
   SettingOutlined,
@@ -56,18 +57,20 @@ interface SidebarProps {
 export function Sidebar({ collapsed, orgRole }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const { tenantParam } = useTenantSwitcher();
   const [moduleItems, setModuleItems] = useState<NavigationItem[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch('/api/v1/core/modules?type=navigation')
+    const tp = tenantParam ? `&${tenantParam}` : '';
+    fetch(`/api/v1/core/modules?type=navigation${tp}`)
       .then(res => res.json())
       .then(data => {
         setModuleItems(Array.isArray(data) ? data : []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, []);
+  }, [tenantParam]);
 
   const coreItems = [
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
@@ -108,9 +111,9 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
     { key: '/admin/audit', icon: <FileSearchOutlined />, label: 'Audit Log' },
   ] : [];
 
-  // Module navigation: only for admin and member, NOT for super_admin
+  // Module navigation: show for all roles (admin, member, super_admin)
   const dynamicItems: typeof coreItems = [];
-  if (orgRole !== 'super_admin') {
+  {
     const groupedModules = new Map<string, typeof moduleItems>();
     for (const item of moduleItems) {
       const modulePath = item.key.split('/')[1];

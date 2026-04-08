@@ -114,6 +114,7 @@ export class PurchaseRequestService {
         updatedBy: this.session.userId,
         items: {
           create: input.items.map(item => ({
+            tenantId: this.session.tenantId,
             description: item.description,
             quantity: Number(item.quantity),
             unit: item.unit,

@@ -38,8 +38,8 @@ export default function RolesPage() {
     },
     {
       title: 'Module', dataIndex: 'moduleId', key: 'moduleId', width: 120,
-      filters: [{ text: 'Procurement', value: 'procurement' }, { text: 'Core', value: null }],
-      onFilter: (value: any, record: any) => value === null ? !record.moduleId : record.moduleId === value,
+      filters: [{ text: 'Procurement', value: 'procurement' }, { text: 'Inventory', value: 'inventory' }, { text: 'Core', value: '' }],
+      onFilter: (value: any, record: any) => value === '' ? !record.moduleId : record.moduleId === value,
       render: (m: string | null) => m ? <Tag color="blue">{m}</Tag> : <Tag>Core</Tag>,
     },
     {
