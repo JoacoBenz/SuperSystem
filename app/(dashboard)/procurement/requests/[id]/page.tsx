@@ -1,6 +1,9 @@
 'use client';
 
-import { Card, Descriptions, Typography, Table, App, Modal, Input, Space, Spin, Button, Result } from 'antd';
+import {
+  Card, Descriptions, Typography, Table, App, Modal, Input, Space, Spin, Button, Result,
+  Form, DatePicker, InputNumber, Select, Switch, Divider,
+} from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
@@ -8,7 +11,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { WorkflowTimeline } from '@/components/ui/WorkflowTimeline';
 import { PURCHASE_REQUEST_STATUS_LABELS, PURCHASE_REQUEST_STATUS_COLORS } from '@/src/modules/procurement/types';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 interface AvailableAction {
   action: string;
@@ -16,12 +19,6 @@ interface AvailableAction {
   permitted: boolean;
 }
 
-// Actions that should prompt for notes before executing
-const ACTIONS_REQUIRING_NOTES = [
-  'reject', 'return_to_requester', 'validate', 'approve',
-];
-
-// Human-readable success messages per action
 const ACTION_SUCCESS_MESSAGES: Record<string, string> = {
   submit: 'Request submitted for review',
   validate: 'Request validated successfully',
@@ -29,15 +26,40 @@ const ACTION_SUCCESS_MESSAGES: Record<string, string> = {
   approve: 'Request approved',
   reject: 'Request rejected',
   start_procurement: 'Procurement process started',
-  schedule_payment: 'Payment scheduled',
-  record_purchase: 'Purchase recorded',
-  record_reception: 'Reception recorded',
+  schedule_payment: 'Payment scheduled successfully',
+  record_purchase: 'Purchase recorded successfully',
+  record_reception: 'Reception recorded successfully',
+  escalate_issue: 'Issue escalated for resolution',
+  return_to_vendor: 'Returned to vendor — awaiting redelivery',
   close: 'Request closed',
   cancel: 'Request cancelled',
 };
 
-// Terminal and completed states where we show a result banner
 const TERMINAL_STATES = ['rejected', 'cancelled', 'closed'];
+
+const PAYMENT_METHODS = [
+  { value: 'bank_transfer', label: 'Bank Transfer' },
+  { value: 'credit_card', label: 'Credit Card' },
+  { value: 'check', label: 'Check' },
+  { value: 'cash', label: 'Cash' },
+  { value: 'other', label: 'Other' },
+];
+
+const ISSUE_TYPES = [
+  { value: 'damaged', label: 'Damaged goods' },
+  { value: 'missing_items', label: 'Missing items' },
+  { value: 'wrong_items', label: 'Wrong items' },
+  { value: 'quality', label: 'Quality issues' },
+  { value: 'other', label: 'Other' },
+];
+
+type ActiveModal =
+  | { type: 'notes'; action: string; label: string }
+  | { type: 'schedule_payment' }
+  | { type: 'record_purchase' }
+  | { type: 'record_reception' }
+  | { type: 'cancel' }
+  | null;
 
 export default function PurchaseRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -45,10 +67,16 @@ export default function PurchaseRequestDetailPage() {
   const [pr, setPr] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-  const [notesModal, setNotesModal] = useState<{ action: string; label: string } | null>(null);
-  const [notes, setNotes] = useState('');
+  const [activeModal, setActiveModal] = useState<ActiveModal>(null);
   const [availableActions, setAvailableActions] = useState<AvailableAction[]>([]);
   const { message } = App.useApp();
+
+  // Forms for complex modals
+  const [notesForm] = Form.useForm();
+  const [paymentForm] = Form.useForm();
+  const [purchaseForm] = Form.useForm();
+  const [receptionForm] = Form.useForm();
+  const [cancelForm] = Form.useForm();
 
   const fetchData = useCallback(async () => {
     try {
@@ -73,13 +101,13 @@ export default function PurchaseRequestDetailPage() {
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const handleAction = async (action: string) => {
+  const executeTransition = async (action: string, notes?: string, data?: Record<string, unknown>) => {
     setActionLoading(true);
     try {
       const res = await fetch(`/api/v1/procurement/purchase-requests/${id}/transitions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, notes: notes || undefined, version: pr?.version }),
+        body: JSON.stringify({ action, notes: notes || undefined, data, version: pr?.version }),
       });
 
       if (!res.ok) {
@@ -88,15 +116,60 @@ export default function PurchaseRequestDetailPage() {
         return;
       }
 
-      const successMsg = ACTION_SUCCESS_MESSAGES[action] ?? 'Action completed';
-      message.success(successMsg);
-      setNotesModal(null);
-      setNotes('');
+      message.success(ACTION_SUCCESS_MESSAGES[action] ?? 'Action completed');
+      setActiveModal(null);
+      notesForm.resetFields();
+      paymentForm.resetFields();
+      purchaseForm.resetFields();
+      receptionForm.resetFields();
+      cancelForm.resetFields();
       fetchData();
     } catch {
       message.error('An unexpected error occurred');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const onAction = (action: string) => {
+    switch (action) {
+      case 'schedule_payment':
+        setActiveModal({ type: 'schedule_payment' });
+        break;
+      case 'record_purchase':
+        purchaseForm.setFieldsValue({
+          totalAmount: pr?.estimatedTotal ? Number(pr.estimatedTotal) : undefined,
+        });
+        setActiveModal({ type: 'record_purchase' });
+        break;
+      case 'record_reception':
+        receptionForm.setFieldsValue({
+          conforming: true,
+          items: pr?.items?.map((item: any) => ({
+            purchaseRequestItemId: item.id,
+            description: item.description,
+            quantityOrdered: Number(item.quantity),
+            quantityReceived: Number(item.quantity),
+            conforming: true,
+          })),
+        });
+        setActiveModal({ type: 'record_reception' });
+        break;
+      case 'cancel':
+        setActiveModal({ type: 'cancel' });
+        break;
+      case 'validate':
+      case 'approve':
+      case 'reject':
+      case 'return_to_requester':
+      case 'escalate_issue':
+      case 'return_to_vendor': {
+        const label = availableActions.find(a => a.action === action)?.label ?? action;
+        setActiveModal({ type: 'notes', action, label });
+        break;
+      }
+      default:
+        executeTransition(action);
     }
   };
 
@@ -111,13 +184,15 @@ export default function PurchaseRequestDetailPage() {
     ...(pr.validatedAt ? [{ state: 'validated', label: 'Validated', timestamp: pr.validatedAt }] : []),
     ...(pr.approvedAt ? [{ state: 'approved', label: 'Approved', timestamp: pr.approvedAt }] : []),
     ...(pr.processedAt ? [{ state: 'in_procurement', label: 'Procurement Started', timestamp: pr.processedAt }] : []),
-    ...(pr.scheduledPaymentDate ? [{ state: 'payment_scheduled', label: 'Payment Scheduled', timestamp: pr.scheduledPaymentDate }] : []),
+    ...(pr.scheduledPaymentDate ? [{ state: 'payment_scheduled', label: `Payment Scheduled for ${new Date(pr.scheduledPaymentDate).toLocaleDateString()}`, timestamp: pr.scheduledPaymentDate }] : []),
     ...(pr.status === 'purchased' || pr.status === 'received' || pr.status === 'received_with_issues' || pr.status === 'closed'
       ? [{ state: 'purchased', label: 'Purchased' }] : []),
     ...(pr.status === 'received' || pr.status === 'closed'
-      ? [{ state: 'received', label: 'Received' }] : []),
-    ...(pr.status === 'received_with_issues'
+      ? [{ state: 'received', label: 'Goods Received' }] : []),
+    ...(pr.status === 'received_with_issues' || pr.status === 'pending_resolution'
       ? [{ state: 'received_with_issues', label: 'Received with Issues' }] : []),
+    ...(pr.status === 'pending_resolution'
+      ? [{ state: 'pending_resolution', label: 'Pending Resolution' }] : []),
     ...(pr.rejectedAt ? [{ state: 'rejected', label: 'Rejected', timestamp: pr.rejectedAt }] : []),
     ...(pr.status === 'cancelled' ? [{ state: 'cancelled', label: 'Cancelled' }] : []),
     ...(pr.status === 'closed' ? [{ state: 'closed', label: 'Closed' }] : []),
@@ -156,12 +231,40 @@ export default function PurchaseRequestDetailPage() {
           <Descriptions.Item label="Estimated Total">{pr.estimatedTotal ? `$${Number(pr.estimatedTotal).toLocaleString()}` : '-'}</Descriptions.Item>
           <Descriptions.Item label="Vendor">{pr.vendor?.name ?? '-'}</Descriptions.Item>
           <Descriptions.Item label="Cost Center">{pr.costCenter ? `${pr.costCenter.code} - ${pr.costCenter.name}` : '-'}</Descriptions.Item>
+          {pr.scheduledPaymentDate && (
+            <Descriptions.Item label="Payment Date">{new Date(pr.scheduledPaymentDate).toLocaleDateString()}</Descriptions.Item>
+          )}
+          {pr.orders?.length > 0 && (
+            <Descriptions.Item label="Purchase Orders" span={2}>
+              {pr.orders.map((po: any) => (
+                <div key={po.id}>
+                  {po.invoiceNumber && <Text strong>Invoice: {po.invoiceNumber}</Text>}
+                  {' — '}${Number(po.totalAmount).toLocaleString()} via {po.paymentMethod}
+                  {po.bankReference && ` (Ref: ${po.bankReference})`}
+                  {' — '}{new Date(po.purchaseDate).toLocaleDateString()}
+                </div>
+              ))}
+            </Descriptions.Item>
+          )}
         </Descriptions>
       </Card>
 
       <Card title="Items" style={{ marginTop: 16 }}>
         <Table columns={itemColumns} dataSource={pr.items ?? []} rowKey="id" pagination={false} size="small" />
       </Card>
+
+      {pr.receptions?.length > 0 && (
+        <Card title="Receptions" style={{ marginTop: 16 }}>
+          {pr.receptions.map((rec: any) => (
+            <div key={rec.id} style={{ marginBottom: 12 }}>
+              <Text strong>{rec.conforming ? 'Conforming' : 'Non-conforming'}</Text>
+              {rec.issueType && <Text type="danger"> — {rec.issueType}</Text>}
+              <Text type="secondary"> — {new Date(rec.receivedAt).toLocaleDateString()}</Text>
+              {rec.notes && <div><Text type="secondary">{rec.notes}</Text></div>}
+            </div>
+          ))}
+        </Card>
+      )}
 
       {isTerminal ? (
         <Card style={{ marginTop: 16 }}>
@@ -171,6 +274,8 @@ export default function PurchaseRequestDetailPage() {
             subTitle={
               pr.rejectionReason
                 ? `Reason: ${pr.rejectionReason}`
+                : pr.cancellationReason
+                ? `Reason: ${pr.cancellationReason}`
                 : pr.status === 'closed'
                 ? 'This request has been completed and closed.'
                 : 'This request has been cancelled.'
@@ -184,31 +289,204 @@ export default function PurchaseRequestDetailPage() {
             currentState={pr.status}
             availableActions={availableActions}
             loading={actionLoading}
-            onAction={(action) => {
-              if (ACTIONS_REQUIRING_NOTES.includes(action)) {
-                const label = availableActions.find(a => a.action === action)?.label ?? action;
-                setNotesModal({ action, label });
-              } else {
-                handleAction(action);
-              }
-            }}
+            onAction={onAction}
           />
         </Card>
       )}
 
+      {/* Notes modal (validate, approve, reject, return) */}
       <Modal
-        title={notesModal?.label}
-        open={!!notesModal}
-        onOk={() => notesModal && handleAction(notesModal.action)}
-        onCancel={() => { setNotesModal(null); setNotes(''); }}
+        title={activeModal?.type === 'notes' ? activeModal.label : ''}
+        open={activeModal?.type === 'notes'}
+        forceRender
+        onOk={() => {
+          if (activeModal?.type === 'notes') {
+            const values = notesForm.getFieldsValue();
+            executeTransition(activeModal.action, values.notes);
+          }
+        }}
+        onCancel={() => { setActiveModal(null); notesForm.resetFields(); }}
         confirmLoading={actionLoading}
       >
-        <Input.TextArea
-          rows={3}
-          placeholder="Add notes (optional)"
-          value={notes}
-          onChange={e => setNotes(e.target.value)}
-        />
+        <Form form={notesForm} layout="vertical">
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={3} placeholder="Add notes (optional)" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Schedule Payment modal */}
+      <Modal
+        title="Schedule Payment"
+        forceRender
+        open={activeModal?.type === 'schedule_payment'}
+        onOk={async () => {
+          try {
+            const values = await paymentForm.validateFields();
+            executeTransition('schedule_payment', values.notes, {
+              scheduledPaymentDate: values.scheduledPaymentDate.toISOString(),
+            });
+          } catch {}
+        }}
+        onCancel={() => { setActiveModal(null); paymentForm.resetFields(); }}
+        confirmLoading={actionLoading}
+      >
+        <Form form={paymentForm} layout="vertical">
+          <Form.Item name="scheduledPaymentDate" label="Payment Date" rules={[{ required: true, message: 'Payment date is required' }]}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={2} placeholder="Additional notes (optional)" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Record Purchase modal */}
+      <Modal
+        title="Record Purchase"
+        forceRender
+        open={activeModal?.type === 'record_purchase'}
+        width={600}
+        onOk={async () => {
+          try {
+            const values = await purchaseForm.validateFields();
+            executeTransition('record_purchase', values.notes, {
+              purchaseDate: values.purchaseDate.toISOString(),
+              totalAmount: values.totalAmount,
+              paymentMethod: values.paymentMethod,
+              invoiceNumber: values.invoiceNumber || undefined,
+              bankReference: values.bankReference || undefined,
+              vendorDetails: values.vendorDetails || undefined,
+            });
+          } catch {}
+        }}
+        onCancel={() => { setActiveModal(null); purchaseForm.resetFields(); }}
+        confirmLoading={actionLoading}
+      >
+        <Form form={purchaseForm} layout="vertical">
+          <Form.Item name="purchaseDate" label="Purchase Date" rules={[{ required: true, message: 'Purchase date is required' }]}>
+            <DatePicker style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="totalAmount" label="Total Amount" rules={[{ required: true, message: 'Total amount is required' }]}>
+            <InputNumber prefix="$" style={{ width: '100%' }} min={0.01} precision={2} />
+          </Form.Item>
+          <Form.Item name="paymentMethod" label="Payment Method" rules={[{ required: true, message: 'Payment method is required' }]}>
+            <Select options={PAYMENT_METHODS} placeholder="Select payment method" />
+          </Form.Item>
+          <Form.Item name="invoiceNumber" label="Invoice Number">
+            <Input placeholder="Invoice # (optional)" />
+          </Form.Item>
+          <Form.Item name="bankReference" label="Bank Reference">
+            <Input placeholder="Bank reference (optional)" />
+          </Form.Item>
+          <Form.Item name="vendorDetails" label="Vendor Details">
+            <Input.TextArea rows={2} placeholder="Additional vendor details (optional)" />
+          </Form.Item>
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea rows={2} placeholder="Additional notes (optional)" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Record Reception modal */}
+      <Modal
+        title="Record Reception"
+        forceRender
+        open={activeModal?.type === 'record_reception'}
+        width={700}
+        onOk={async () => {
+          try {
+            const values = await receptionForm.validateFields();
+            const items = values.items?.map((item: any) => ({
+              purchaseRequestItemId: item.purchaseRequestItemId,
+              quantityReceived: item.quantityReceived,
+              conforming: item.conforming ?? true,
+              notes: item.itemNotes || undefined,
+            }));
+            executeTransition('record_reception', values.notes, {
+              conforming: values.conforming,
+              issueType: values.conforming ? undefined : values.issueType,
+              items,
+            });
+          } catch {}
+        }}
+        onCancel={() => { setActiveModal(null); receptionForm.resetFields(); }}
+        confirmLoading={actionLoading}
+      >
+        <Form form={receptionForm} layout="vertical">
+          <Form.Item name="conforming" label="All items received in good condition?" valuePropName="checked" initialValue={true}>
+            <Switch checkedChildren="Yes" unCheckedChildren="No" />
+          </Form.Item>
+          <Form.Item noStyle shouldUpdate={(prev, cur) => prev.conforming !== cur.conforming}>
+            {({ getFieldValue }) =>
+              !getFieldValue('conforming') && (
+                <Form.Item name="issueType" label="Issue Type" rules={[{ required: true, message: 'Select an issue type' }]}>
+                  <Select options={ISSUE_TYPES} placeholder="Select issue type" />
+                </Form.Item>
+              )
+            }
+          </Form.Item>
+
+          <Divider>Items Received</Divider>
+          <Form.List name="items">
+            {(fields) => (
+              <>
+                {fields.map(({ key, name, ...restField }) => (
+                  <div key={key} style={{ display: 'flex', gap: 12, marginBottom: 8, alignItems: 'center' }}>
+                    <Form.Item {...restField} name={[name, 'purchaseRequestItemId']} hidden>
+                      <Input />
+                    </Form.Item>
+                    <Text style={{ flex: 1 }}>
+                      {receptionForm.getFieldValue(['items', name, 'description'])}
+                    </Text>
+                    <Text type="secondary" style={{ width: 80 }}>
+                      Ordered: {receptionForm.getFieldValue(['items', name, 'quantityOrdered'])}
+                    </Text>
+                    <Form.Item
+                      {...restField}
+                      name={[name, 'quantityReceived']}
+                      rules={[{ required: true, message: 'Required' }]}
+                      style={{ margin: 0, width: 120 }}
+                    >
+                      <InputNumber placeholder="Received" min={0} style={{ width: '100%' }} />
+                    </Form.Item>
+                    <Form.Item {...restField} name={[name, 'conforming']} valuePropName="checked" style={{ margin: 0 }}>
+                      <Switch size="small" checkedChildren="OK" unCheckedChildren="Issue" />
+                    </Form.Item>
+                  </div>
+                ))}
+              </>
+            )}
+          </Form.List>
+
+          <Form.Item name="notes" label="Reception Notes">
+            <Input.TextArea rows={2} placeholder="Notes about the reception (optional)" />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      {/* Cancel modal */}
+      <Modal
+        title="Cancel Request"
+        forceRender
+        open={activeModal?.type === 'cancel'}
+        onOk={async () => {
+          try {
+            const values = await cancelForm.validateFields();
+            executeTransition('cancel', values.reason);
+          } catch {}
+        }}
+        onCancel={() => { setActiveModal(null); cancelForm.resetFields(); }}
+        confirmLoading={actionLoading}
+        okButtonProps={{ danger: true }}
+        okText="Confirm Cancellation"
+      >
+        <Form form={cancelForm} layout="vertical">
+          <Text type="secondary">This action cannot be undone. The request will be permanently cancelled.</Text>
+          <Form.Item name="reason" label="Cancellation Reason" rules={[{ required: true, message: 'Please provide a reason for cancellation' }]} style={{ marginTop: 16 }}>
+            <Input.TextArea rows={3} placeholder="Why is this request being cancelled?" />
+          </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

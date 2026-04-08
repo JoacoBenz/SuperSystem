@@ -17,6 +17,7 @@ const config: StateMachineConfig = {
     purchased:             { label: 'Purchased' },
     received:              { label: 'Received' },
     received_with_issues:  { label: 'Received with Issues' },
+    pending_resolution:    { label: 'Pending Resolution' },
     rejected:              { label: 'Rejected',      terminal: true },
     cancelled:             { label: 'Cancelled',     terminal: true },
     closed:                { label: 'Closed',        terminal: true },
@@ -55,6 +56,15 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     requiredPermissions: ['procurement.purchase_request.return'],
     segregationRule: 'validate',
   },
+  // Validator can reject at submitted stage
+  {
+    action: 'reject',
+    from: 'submitted',
+    to: 'rejected',
+    label: 'Reject',
+    requiredPermissions: ['procurement.purchase_request.validate'],
+    segregationRule: 'validate',
+  },
 
   // ── Approver actions ───────────────────────────────────────────────
   {
@@ -73,12 +83,14 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     requiredPermissions: ['procurement.purchase_request.return'],
     segregationRule: 'approve',
   },
+  // Approver can reject at validated stage
   {
     action: 'reject',
-    from: ['submitted', 'validated'],
+    from: 'validated',
     to: 'rejected',
     label: 'Reject',
     requiredPermissions: ['procurement.purchase_request.reject'],
+    segregationRule: 'approve',
   },
 
   // ── Buyer actions ──────────────────────────────────────────────────
@@ -90,6 +102,7 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     requiredPermissions: ['procurement.purchase_request.process'],
     segregationRule: 'purchase',
   },
+  // Schedule payment is optional — buyer can go straight to record_purchase
   {
     action: 'schedule_payment',
     from: 'in_procurement',
@@ -98,9 +111,10 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     requiredPermissions: ['procurement.purchase_request.schedule_payment'],
     segregationRule: 'purchase',
   },
+  // Record purchase: from in_procurement (skip payment scheduling) or payment_scheduled
   {
     action: 'record_purchase',
-    from: 'payment_scheduled',
+    from: ['in_procurement', 'payment_scheduled'],
     to: 'purchased',
     label: 'Record Purchase',
     requiredPermissions: ['procurement.purchase_order.create'],
@@ -114,9 +128,40 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     to: (ctx) => {
       if (ctx.allItemsReceived && !ctx.hasIssues) return 'received';
       if (ctx.allItemsReceived && ctx.hasIssues) return 'received_with_issues';
-      if (!ctx.allItemsReceived) return 'purchased'; // partial reception
+      if (!ctx.allItemsReceived) return 'purchased'; // partial reception stays purchased
       if (ctx.receptionConforming) return 'received';
       return 'received_with_issues';
+    },
+    label: 'Record Reception',
+    requiredPermissions: ['procurement.reception.create'],
+    segregationRule: 'receive',
+  },
+
+  // ── Issue resolution ───────────────────────────────────────────────
+  // Buyer escalates issues for resolution
+  {
+    action: 'escalate_issue',
+    from: 'received_with_issues',
+    to: 'pending_resolution',
+    label: 'Escalate for Resolution',
+    requiredPermissions: ['procurement.purchase_request.process'],
+  },
+  // Buyer resolves and returns to purchased (vendor resend, replacement, etc.)
+  {
+    action: 'return_to_vendor',
+    from: ['received_with_issues', 'pending_resolution'],
+    to: 'purchased',
+    label: 'Return to Vendor (Await Redelivery)',
+    requiredPermissions: ['procurement.purchase_request.process'],
+  },
+  // Re-receive after issue resolution
+  {
+    action: 'record_reception',
+    from: 'pending_resolution',
+    to: (ctx) => {
+      if (ctx.allItemsReceived && !ctx.hasIssues) return 'received';
+      if (ctx.hasIssues) return 'received_with_issues';
+      return 'received';
     },
     label: 'Record Reception',
     requiredPermissions: ['procurement.reception.create'],
@@ -132,7 +177,8 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     requiredPermissions: ['procurement.purchase_request.close'],
   },
 
-  // ── Cancel (requester: early stages, buyer: procurement stages) ────
+  // ── Cancel ─────────────────────────────────────────────────────────
+  // Requester cancels own request in early stages
   {
     action: 'cancel',
     from: ['draft', 'submitted', 'returned_by_validator', 'returned_by_approver'],
@@ -140,11 +186,21 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     label: 'Cancel Request',
     requiredPermissions: ['procurement.purchase_request.cancel'],
     guards: [{
-      name: 'is_owner_or_approver',
+      name: 'is_owner',
       description: 'Only the requester can cancel in early stages',
       check: ctx => ({ pass: ctx.userId === ctx.requesterId }),
     }],
   },
+  // Approver cancels from validated (before procurement starts)
+  {
+    action: 'cancel',
+    from: 'validated',
+    to: 'cancelled',
+    label: 'Cancel Request',
+    requiredPermissions: ['procurement.purchase_request.reject'],
+    segregationRule: 'approve',
+  },
+  // Buyer cancels during procurement stages
   {
     action: 'cancel',
     from: ['approved', 'in_procurement', 'payment_scheduled'],

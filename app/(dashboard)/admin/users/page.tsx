@@ -6,13 +6,30 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTenantSwitcher } from '@/components/providers/TenantSwitcher';
 import { useColumnSearch } from '@/components/ui/columnSearch';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 const ORG_ROLE_OPTIONS = [
   { value: 'member', label: 'Member' },
   { value: 'admin', label: 'Admin' },
   { value: 'super_admin', label: 'Super Admin' },
 ];
+
+const MODULE_COLORS: Record<string, string> = {
+  procurement: 'blue',
+  inventory: 'green',
+  hr: 'orange',
+  sales: 'purple',
+  accounting: 'cyan',
+};
+
+function formatRoleName(role: { name?: string; displayName?: string }) {
+  const name = role.name ?? '';
+  const parts = name.split('.');
+  if (parts.length < 2) return role.displayName ?? name;
+  const module = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  const roleName = role.displayName ?? parts[1];
+  return { module, roleName, moduleKey: parts[0] };
+}
 
 export default function UsersPage() {
   const [data, setData] = useState<any[]>([]);
@@ -38,8 +55,8 @@ export default function UsersPage() {
 
   useEffect(() => {
     const tp = tenantParam ? `?${tenantParam}` : '';
-    fetch(`/api/v1/core/roles${tp}`).then(r => r.json()).then(d => setRoles(d.data ?? [])).catch(() => {});
-    fetch(`/api/v1/core/departments${tp}`).then(r => r.json()).then(d => setDepartments(d.data ?? [])).catch(() => {});
+    fetch(`/api/v1/core/roles${tp}`).then(r => r.json()).then(d => setRoles(Array.isArray(d) ? d : d.data ?? [])).catch(() => {});
+    fetch(`/api/v1/core/departments${tp}`).then(r => r.json()).then(d => setDepartments(Array.isArray(d) ? d : d.data ?? [])).catch(() => {});
   }, [tenantParam]);
 
   const fetchData = useCallback(async () => {
@@ -72,7 +89,7 @@ export default function UsersPage() {
       email: user.email,
       orgRole: user.orgRole,
       departmentId: user.departmentId,
-      roleIds: user.roles?.map((r: any) => r.roleId ?? r.id) ?? [],
+      roleIds: (user.userRoles ?? user.roles)?.map((r: any) => r.roleId ?? r.id) ?? [],
     });
     setModalOpen(true);
   };
@@ -135,8 +152,27 @@ export default function UsersPage() {
       render: (d: any) => d?.name ?? '-',
     },
     {
-      title: 'Roles', dataIndex: 'userRoles', key: 'roles',
-      render: (roles: any[]) => roles?.length ? roles.map((r: any) => <Tag key={r.roleId ?? r.id}>{r.role?.displayName ?? r.role?.name ?? r.name}</Tag>) : '-',
+      title: 'Modules & Roles', dataIndex: 'userRoles', key: 'roles',
+      render: (roles: any[]) => {
+        if (!roles?.length) return '-';
+        const grouped: Record<string, { module: string; moduleKey: string; roles: string[] }> = {};
+        for (const r of roles) {
+          const info = formatRoleName(r.role ?? r);
+          if (typeof info === 'string') continue;
+          if (!grouped[info.moduleKey]) grouped[info.moduleKey] = { module: info.module, moduleKey: info.moduleKey, roles: [] };
+          grouped[info.moduleKey].roles.push(info.roleName);
+        }
+        return (
+          <Space orientation="vertical" size={2}>
+            {Object.entries(grouped).map(([key, g]) => (
+              <div key={key}>
+                <Tag color={MODULE_COLORS[key] ?? 'default'} style={{ fontWeight: 500 }}>{g.module}</Tag>
+                <Text type="secondary" style={{ fontSize: 12 }}>{g.roles.join(', ')}</Text>
+              </div>
+            ))}
+          </Space>
+        );
+      },
     },
     {
       title: 'Actions', key: 'actions', width: 100,
@@ -223,7 +259,11 @@ export default function UsersPage() {
               showSearch
               optionFilterProp="label"
               placeholder="Select roles"
-              options={roles.map((r: any) => ({ value: r.id, label: r.name }))}
+              options={roles.map((r: any) => {
+                const info = formatRoleName(r);
+                const label = typeof info === 'string' ? info : `${info.module}: ${info.roleName}`;
+                return { value: r.id, label };
+              })}
             />
           </Form.Item>
         </Form>

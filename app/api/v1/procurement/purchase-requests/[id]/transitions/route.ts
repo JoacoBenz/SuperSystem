@@ -18,10 +18,10 @@ export const POST = withAuth(
   { moduleId: 'procurement', body: transitionSchema },
   async (request, ctx) => {
     const id = parseInt(ctx.params.id);
-    const { action, notes, version } = ctx.body;
+    const { action, notes, version, data } = ctx.body;
 
     const service = new PurchaseRequestService(ctx.db, ctx.session, ctx.audit);
-    const result = await service.transition(id, action, notes, version);
+    const result = await service.transition(id, action, notes, version, data);
 
     return ok(result);
   },

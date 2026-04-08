@@ -1,5 +1,5 @@
 import { prisma } from '@/src/core/db/client';
-import { cached, invalidateCache } from '@/src/core/cache';
+import { cached } from '@/src/core/cache';
 
 export async function getTenantConfig(tenantId: number): Promise<Map<string, string>> {
   const cacheKey = `t:${tenantId}:config`;
@@ -31,17 +31,3 @@ export async function getTenantConfigBool(
   return val === 'true' || val === '1';
 }
 
-export async function getTenantConfigNumber(
-  tenantId: number,
-  key: string,
-  defaultValue = 0,
-): Promise<number> {
-  const val = await getTenantConfigValue(tenantId, key);
-  if (!val) return defaultValue;
-  const num = Number(val);
-  return isNaN(num) ? defaultValue : num;
-}
-
-export function invalidateTenantConfig(tenantId: number): void {
-  invalidateCache(`t:${tenantId}:config`);
-}

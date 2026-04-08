@@ -20,7 +20,8 @@ model PurchaseRequest {
   approvedAt    DateTime? @map("approved_at")
   rejectedById  Int?      @map("rejected_by_id")
   rejectedAt    DateTime? @map("rejected_at")
-  rejectionReason String? @map("rejection_reason")
+  rejectionReason    String? @map("rejection_reason")
+  cancellationReason String? @map("cancellation_reason")
   submittedAt   DateTime? @map("submitted_at")
 
   // Procurement processing

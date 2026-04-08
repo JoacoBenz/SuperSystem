@@ -28,6 +28,7 @@ interface WorkflowTimelineProps {
 
 const PRIMARY_ACTIONS = ['approve', 'validate', 'start_procurement', 'schedule_payment', 'record_purchase', 'record_reception', 'close', 'submit'];
 const DANGER_ACTIONS = ['reject', 'cancel'];
+const WARNING_ACTIONS = ['escalate_issue', 'return_to_vendor'];
 
 export function WorkflowTimeline({ entries, currentState, availableActions = [], onAction, loading }: WorkflowTimelineProps) {
   const items = entries.map((entry, index) => ({
@@ -56,10 +57,11 @@ export function WorkflowTimeline({ entries, currentState, availableActions = [],
           {availableActions.map(({ action, label, permitted = true }) => {
             const isPrimary = PRIMARY_ACTIONS.includes(action);
             const isDanger = DANGER_ACTIONS.includes(action);
+            const isWarning = WARNING_ACTIONS.includes(action);
             const btn = (
               <Button
                 key={action}
-                type={isPrimary ? 'primary' : 'default'}
+                type={isPrimary ? 'primary' : isWarning ? 'dashed' : 'default'}
                 danger={isDanger}
                 onClick={() => permitted && onAction?.(action)}
                 loading={loading}

@@ -19,7 +19,7 @@ export const GET = withAuth(
     const pageSize = parseInt(query.get('limit') ?? '20');
     const search = query.get('search') ?? undefined;
 
-    const where: Record<string, unknown> = { deletedAt: null };
+    const where: Record<string, unknown> = { deletedAt: null, orgRole: { not: 'super_admin' } };
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },

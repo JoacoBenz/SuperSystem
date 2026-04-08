@@ -23,6 +23,7 @@ export type PurchaseRequestStatus =
   | 'purchased'
   | 'received'
   | 'received_with_issues'
+  | 'pending_resolution'
   | 'rejected'
   | 'cancelled'
   | 'closed';
@@ -39,6 +40,7 @@ export const PURCHASE_REQUEST_STATUS_LABELS: Record<PurchaseRequestStatus, strin
   purchased: 'Purchased',
   received: 'Received',
   received_with_issues: 'Received with Issues',
+  pending_resolution: 'Pending Resolution',
   rejected: 'Rejected',
   cancelled: 'Cancelled',
   closed: 'Closed',
@@ -56,6 +58,7 @@ export const PURCHASE_REQUEST_STATUS_COLORS: Record<PurchaseRequestStatus, strin
   purchased: 'magenta',
   received: 'green',
   received_with_issues: 'orange',
+  pending_resolution: 'volcano',
   rejected: 'red',
   cancelled: 'default',
   closed: 'success',

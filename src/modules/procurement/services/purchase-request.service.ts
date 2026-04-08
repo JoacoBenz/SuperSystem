@@ -296,7 +296,7 @@ export class PurchaseRequestService {
     return actions;
   }
 
-  async transition(id: number, action: string, notes?: string, version?: number) {
+  async transition(id: number, action: string, notes?: string, version?: number, data?: Record<string, unknown>) {
     const pr = await this.getById(id);
 
     // Optimistic locking
@@ -380,11 +380,79 @@ export class PurchaseRequestService {
         updateData.processedAt = new Date();
         if (notes) updateData.processingNotes = notes;
         break;
-      case 'schedule_payment':
-        updateData.scheduledPaymentDate = new Date();
+      case 'schedule_payment': {
+        const paymentDate = data?.scheduledPaymentDate;
+        if (!paymentDate) throw new ApiError('BAD_REQUEST', 'Payment date is required', 400);
+        updateData.scheduledPaymentDate = new Date(paymentDate as string);
         break;
-      case 'record_purchase':
-        // purchasedAt would be tracked via PurchaseOrder entity
+      }
+      case 'record_purchase': {
+        if (!data?.purchaseDate || !data?.totalAmount || !data?.paymentMethod) {
+          throw new ApiError('BAD_REQUEST', 'Purchase date, total amount, and payment method are required', 400);
+        }
+        // Create PurchaseOrder record
+        await this.db.purchaseOrder.create({
+          data: {
+            tenantId: this.session.tenantId,
+            purchaseRequestId: id,
+            executedById: this.session.userId,
+            vendorId: pr.vendorId,
+            vendorName: pr.vendor?.name ?? 'Unknown',
+            vendorDetails: data.vendorDetails as string ?? null,
+            purchaseDate: new Date(data.purchaseDate as string),
+            totalAmount: Number(data.totalAmount),
+            paymentMethod: data.paymentMethod as string,
+            bankReference: (data.bankReference as string) || null,
+            invoiceNumber: (data.invoiceNumber as string) || null,
+            notes: notes || null,
+          },
+        });
+        break;
+      }
+      case 'record_reception': {
+        const conforming = data?.conforming !== false;
+        const issueType = (data?.issueType as string) || null;
+        const receptionItems = data?.items as Array<{ purchaseRequestItemId: number; quantityReceived: number; conforming: boolean; notes?: string }> | undefined;
+
+        // Create Reception record
+        const reception = await this.db.reception.create({
+          data: {
+            tenantId: this.session.tenantId,
+            purchaseRequestId: id,
+            receiverId: this.session.userId,
+            conforming,
+            issueType: conforming ? null : issueType,
+            notes: notes || null,
+            items: receptionItems?.length ? {
+              create: receptionItems.map(item => ({
+                tenantId: this.session.tenantId,
+                purchaseRequestItemId: item.purchaseRequestItemId,
+                quantityReceived: item.quantityReceived,
+                conforming: item.conforming ?? true,
+                notes: item.notes ?? null,
+              })),
+            } : undefined,
+          },
+        });
+
+        // Update workflow context based on reception data
+        const hasIssues = !conforming || receptionItems?.some(i => !i.conforming);
+        if (hasIssues) {
+          context.hasIssues = true;
+          context.receptionConforming = false;
+        }
+        context.allItemsReceived = true; // For now, assume full reception
+        // Re-evaluate new state with updated context
+        const receptionResult = await purchaseRequestWorkflow.transition(pr.status, action, context);
+        updateData.status = receptionResult.newState;
+        break;
+      }
+      case 'cancel':
+        if (notes) updateData.cancellationReason = notes;
+        break;
+      case 'escalate_issue':
+      case 'return_to_vendor':
+        if (notes) updateData.processingNotes = notes;
         break;
     }
 

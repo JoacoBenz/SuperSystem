@@ -70,7 +70,6 @@ export const procurementRoles: RoleDefinition[] = [
       'procurement.purchase_request.approve',
       'procurement.purchase_request.reject',
       'procurement.purchase_request.return',
-      'procurement.purchase_request.cancel',
       'procurement.vendor.read',
       'procurement.cost_center.read',
     ],
