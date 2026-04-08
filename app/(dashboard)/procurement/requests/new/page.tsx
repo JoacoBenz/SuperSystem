@@ -3,7 +3,7 @@
 import { Card, Form, Input, Select, Button, InputNumber, Space, Typography, App, Divider, AutoComplete, Modal, Table } from 'antd';
 import { PlusOutlined, MinusCircleOutlined, CopyOutlined } from '@ant-design/icons';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { URGENCY_OPTIONS } from '@/src/modules/procurement/types';
 
 const { Title, Text } = Typography;
@@ -18,6 +18,7 @@ export default function NewPurchaseRequestPage() {
   const [costCenters, setCostCenters] = useState<any[]>([]);
   const [savedItems, setSavedItems] = useState<any[]>([]);
   const [templateModal, setTemplateModal] = useState(false);
+  const templateLoaded = useRef(false);
   const [templates, setTemplates] = useState<any[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const { message } = App.useApp();
@@ -31,7 +32,8 @@ export default function NewPurchaseRequestPage() {
   // Load from template if templateId is in URL
   useEffect(() => {
     const templateId = searchParams.get('templateId');
-    if (templateId) {
+    if (templateId && !templateLoaded.current) {
+      templateLoaded.current = true;
       fetch(`/api/v1/procurement/purchase-requests/${templateId}`)
         .then(r => r.json())
         .then(data => {
@@ -54,7 +56,7 @@ export default function NewPurchaseRequestPage() {
             message.info('Loaded from template');
           }
         })
-        .catch(() => {});
+        .catch(() => { templateLoaded.current = false; });
     }
   }, [searchParams, form, message]);
 
