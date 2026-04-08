@@ -1,6 +1,6 @@
 'use client';
 
-import { Layout, Menu, Spin } from 'antd';
+import { Layout, Menu, Spin, Badge } from 'antd';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useTenantSwitcher } from '@/components/providers/TenantSwitcher';
@@ -60,25 +60,75 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
   const { tenantParam } = useTenantSwitcher();
   const [moduleItems, setModuleItems] = useState<NavigationItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const tp = tenantParam ? `&${tenantParam}` : '';
     fetch(`/api/v1/core/modules?type=navigation${tp}`)
       .then(res => res.json())
       .then(data => {
-        setModuleItems(Array.isArray(data) ? data : []);
+        const items: NavigationItem[] = Array.isArray(data) ? data : [];
+        setModuleItems(items);
         setLoading(false);
+
+        // Fetch badge counts for items that have badge endpoints
+        const badgeItems = items.filter(i => i.badge?.countEndpoint);
+        if (badgeItems.length > 0) {
+          Promise.all(
+            badgeItems.map(async (item) => {
+              try {
+                const res = await fetch(item.badge!.countEndpoint);
+                if (res.ok) {
+                  const json = await res.json();
+                  const count = json.count ?? json.total ?? 0;
+                  return { key: item.key, count };
+                }
+              } catch {}
+              return { key: item.key, count: 0 };
+            })
+          ).then(results => {
+            const counts: Record<string, number> = {};
+            for (const r of results) {
+              if (r.count > 0) counts[r.key] = r.count;
+            }
+            setBadgeCounts(counts);
+          });
+        }
       })
       .catch(() => setLoading(false));
   }, [tenantParam]);
 
+  // Refresh badge counts periodically
+  useEffect(() => {
+    if (moduleItems.length === 0) return;
+    const interval = setInterval(() => {
+      const badgeItems = moduleItems.filter(i => i.badge?.countEndpoint);
+      if (badgeItems.length === 0) return;
+      Promise.all(
+        badgeItems.map(async (item) => {
+          try {
+            const res = await fetch(item.badge!.countEndpoint);
+            if (res.ok) {
+              const json = await res.json();
+              return { key: item.key, count: json.count ?? json.total ?? 0 };
+            }
+          } catch {}
+          return { key: item.key, count: 0 };
+        })
+      ).then(results => {
+        const counts: Record<string, number> = {};
+        for (const r of results) {
+          if (r.count > 0) counts[r.key] = r.count;
+        }
+        setBadgeCounts(counts);
+      });
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [moduleItems]);
+
   const coreItems = [
     { key: '/', icon: <DashboardOutlined />, label: 'Dashboard' },
   ];
-
-  // Super admin: platform management only, no module operations
-  // Admin: tenant administration + module navigation
-  // Member: module navigation only
 
   const adminChildren = [
     { key: '/admin/users', icon: <UserOutlined />, label: 'Users' },
@@ -111,7 +161,7 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
     { key: '/admin/audit', icon: <FileSearchOutlined />, label: 'Audit Log' },
   ] : [];
 
-  // Module navigation: show for all roles (admin, member, super_admin)
+  // Module navigation: show for all roles
   const dynamicItems: typeof coreItems = [];
   {
     const groupedModules = new Map<string, typeof moduleItems>();
@@ -126,18 +176,25 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
         key: `/${modulePath}`,
         icon: ICON_MAP[items[0]?.icon] || <AppstoreOutlined />,
         label: MODULE_LABELS[modulePath] ?? modulePath,
-        children: items.map(item => ({
-          key: item.key,
-          icon: ICON_MAP[item.icon] || <AppstoreOutlined />,
-          label: item.label,
-        })),
+        children: items.map(item => {
+          const count = badgeCounts[item.key];
+          return {
+            key: item.key,
+            icon: ICON_MAP[item.icon] || <AppstoreOutlined />,
+            label: count ? (
+              <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {item.label}
+                <Badge count={count} size="small" style={{ marginLeft: 8 }} />
+              </span>
+            ) : item.label,
+          };
+        }),
       } as any);
     }
   }
 
   const menuItems = [...coreItems, ...dynamicItems, ...superAdminItems, ...adminItems];
 
-  // Find the open submenu key based on current path
   const openKey = '/' + (pathname.split('/')[1] ?? '');
 
   return (

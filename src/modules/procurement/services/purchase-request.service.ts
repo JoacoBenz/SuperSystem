@@ -66,6 +66,48 @@ export class PurchaseRequestService {
     return { data, total, page, totalPages: Math.ceil(total / pageSize) };
   }
 
+  async listForBuyer(params: {
+    page?: number;
+    pageSize?: number;
+    status?: string;
+    statuses?: string[];
+    search?: string;
+  }) {
+    const { page = 1, pageSize = 20, status, statuses, search } = params;
+    const where: Record<string, unknown> = { deletedAt: null };
+
+    if (status) {
+      where.status = status;
+    } else if (statuses) {
+      where.status = { in: statuses };
+    }
+
+    if (search) {
+      where.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { number: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [data, total] = await Promise.all([
+      this.db.purchaseRequest.findMany({
+        where: where as any,
+        include: {
+          vendor: { select: { id: true, name: true } },
+          costCenter: { select: { id: true, name: true, code: true } },
+          orders: { select: { id: true, totalAmount: true, purchaseDate: true, invoiceNumber: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+      }),
+      this.db.purchaseRequest.count({ where: where as any }),
+    ]);
+
+    return { data, total, page, totalPages: Math.ceil(total / pageSize) };
+  }
+
   async getById(id: number) {
     const pr = await this.db.purchaseRequest.findUnique({
       where: { id },
@@ -133,6 +175,9 @@ export class PurchaseRequestService {
       moduleId: 'procurement',
       newData: { number: pr.number, title: pr.title, status: pr.status },
     });
+
+    // Auto-save items for future reuse
+    this.saveItemsForReuse(input.items).catch(() => {});
 
     return pr;
   }
@@ -210,6 +255,45 @@ export class PurchaseRequestService {
     });
 
     return this.getById(id);
+  }
+
+  getAvailableActions(pr: any): Array<{ action: string; label: string; permitted: boolean }> {
+    const userPerms = new Set(this.session.permissions);
+    const allTransitions = purchaseRequestWorkflow['transitions'] as any[];
+
+    // All transitions that match the current state
+    const fromState = pr.status;
+    const matchingTransitions = allTransitions.filter((t: any) => {
+      const fromStates = Array.isArray(t.from) ? t.from : [t.from];
+      return fromStates.includes(fromState);
+    });
+
+    // Deduplicate by action (some actions have multiple from states)
+    const seen = new Set<string>();
+    const actions: Array<{ action: string; label: string; permitted: boolean }> = [];
+    for (const t of matchingTransitions) {
+      if (seen.has(t.action)) continue;
+      seen.add(t.action);
+
+      const hasPermission = t.requiredPermissions.every((p: string) => userPerms.has(p));
+
+      // Check segregation
+      let segregationOk = true;
+      if (hasPermission && t.segregationRule) {
+        const rule = PROCUREMENT_SEGREGATION[t.segregationRule];
+        if (rule) {
+          const result = checkSegregation(rule, this.session.userId, pr as any);
+          segregationOk = result.allowed;
+        }
+      }
+
+      actions.push({
+        action: t.action,
+        label: t.label ?? t.action,
+        permitted: hasPermission && segregationOk,
+      });
+    }
+    return actions;
   }
 
   async transition(id: number, action: string, notes?: string, version?: number) {
@@ -303,5 +387,36 @@ export class PurchaseRequestService {
     });
 
     return updated;
+  }
+
+  private async saveItemsForReuse(items: Array<{ description: string; unit?: string; estimatedPrice?: number | null; productUrl?: string | null }>) {
+    for (const item of items) {
+      try {
+        await this.db.procurementSavedItem.upsert({
+          where: {
+            tenantId_userId_description: {
+              tenantId: this.session.tenantId,
+              userId: this.session.userId,
+              description: item.description,
+            },
+          },
+          update: {
+            unit: item.unit ?? 'units',
+            estimatedPrice: item.estimatedPrice ? Number(item.estimatedPrice) : null,
+            productUrl: item.productUrl ?? null,
+            useCount: { increment: 1 },
+            lastUsedAt: new Date(),
+          },
+          create: {
+            tenantId: this.session.tenantId,
+            userId: this.session.userId,
+            description: item.description,
+            unit: item.unit ?? 'units',
+            estimatedPrice: item.estimatedPrice ? Number(item.estimatedPrice) : null,
+            productUrl: item.productUrl ?? null,
+          },
+        });
+      } catch {}
+    }
   }
 }

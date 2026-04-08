@@ -1,6 +1,7 @@
 'use client';
 
-import { Card, Descriptions, Typography, Divider, Table, App, Modal, Input, Space, Spin } from 'antd';
+import { Card, Descriptions, Typography, Divider, Table, App, Modal, Input, Space, Spin, Tooltip, Button } from 'antd';
+import { CopyOutlined } from '@ant-design/icons';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -8,6 +9,12 @@ import { WorkflowTimeline } from '@/components/ui/WorkflowTimeline';
 import { PURCHASE_REQUEST_STATUS_LABELS, PURCHASE_REQUEST_STATUS_COLORS } from '@/src/modules/procurement/types';
 
 const { Title, Text } = Typography;
+
+interface AvailableAction {
+  action: string;
+  label: string;
+  permitted: boolean;
+}
 
 export default function PurchaseRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -17,14 +24,25 @@ export default function PurchaseRequestDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [notesModal, setNotesModal] = useState<{ action: string; label: string } | null>(null);
   const [notes, setNotes] = useState('');
+  const [availableActions, setAvailableActions] = useState<AvailableAction[]>([]);
   const { message } = App.useApp();
 
   const fetchData = useCallback(async () => {
     try {
-      const res = await fetch(`/api/v1/procurement/purchase-requests/${id}`);
-      if (!res.ok) { setPr(null); return; }
-      const json = await res.json();
-      setPr(json.data ?? json ?? null);
+      const [prRes, actionsRes] = await Promise.all([
+        fetch(`/api/v1/procurement/purchase-requests/${id}`),
+        fetch(`/api/v1/procurement/purchase-requests/${id}/transitions`),
+      ]);
+      if (prRes.ok) {
+        const json = await prRes.json();
+        setPr(json.data ?? json ?? null);
+      } else {
+        setPr(null);
+      }
+      if (actionsRes.ok) {
+        const json = await actionsRes.json();
+        setAvailableActions(Array.isArray(json) ? json : json.data ?? []);
+      }
     } catch {} finally {
       setLoading(false);
     }
@@ -72,37 +90,6 @@ export default function PurchaseRequestDetailPage() {
     ...(pr.processedAt ? [{ state: 'processed', label: 'Processed', timestamp: pr.processedAt }] : []),
   ];
 
-  // Available actions based on current status
-  const availableActions: Array<{ action: string; label: string }> = [];
-  const s = pr.status;
-  if (s === 'draft' || s === 'returned_by_validator' || s === 'returned_by_approver') {
-    availableActions.push({ action: 'submit', label: 'Submit' });
-  }
-  if (s === 'submitted') {
-    availableActions.push({ action: 'validate', label: 'Validate' });
-    availableActions.push({ action: 'return', label: 'Return' });
-  }
-  if (s === 'validated') {
-    availableActions.push({ action: 'approve', label: 'Approve' });
-    availableActions.push({ action: 'return', label: 'Return' });
-    availableActions.push({ action: 'reject', label: 'Reject' });
-  }
-  if (s === 'approved' || s === 'in_procurement') {
-    availableActions.push({ action: 'process', label: 'Process' });
-  }
-  if (s === 'in_procurement') {
-    availableActions.push({ action: 'schedule_payment', label: 'Schedule Payment' });
-  }
-  if (s === 'approved' || s === 'in_procurement' || s === 'payment_scheduled') {
-    availableActions.push({ action: 'record_purchase', label: 'Record Purchase' });
-  }
-  if (s === 'received' || s === 'received_with_issues') {
-    availableActions.push({ action: 'close', label: 'Close' });
-  }
-  if (['draft', 'submitted', 'validated', 'approved', 'in_procurement', 'payment_scheduled'].includes(s)) {
-    availableActions.push({ action: 'cancel', label: 'Cancel' });
-  }
-
   const itemColumns = [
     { title: 'Description', dataIndex: 'description', key: 'description' },
     { title: 'Quantity', dataIndex: 'quantity', key: 'quantity', render: (v: string) => Number(v) },
@@ -112,9 +99,17 @@ export default function PurchaseRequestDetailPage() {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <Space align="center" style={{ marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>{pr.number}</Title>
-        <StatusBadge status={pr.status} labels={PURCHASE_REQUEST_STATUS_LABELS} colors={PURCHASE_REQUEST_STATUS_COLORS} />
+      <Space align="center" style={{ marginBottom: 16, width: '100%', justifyContent: 'space-between' }}>
+        <Space align="center">
+          <Title level={4} style={{ margin: 0 }}>{pr.number}</Title>
+          <StatusBadge status={pr.status} labels={PURCHASE_REQUEST_STATUS_LABELS} colors={PURCHASE_REQUEST_STATUS_COLORS} />
+        </Space>
+        <Button
+          icon={<CopyOutlined />}
+          onClick={() => router.push(`/procurement/requests/new?templateId=${id}`)}
+        >
+          Use as Template
+        </Button>
       </Space>
 
       <Card>

@@ -1,7 +1,7 @@
 'use client';
 
-import { Timeline, Button, Space, Typography } from 'antd';
-import { CheckCircleOutlined, ClockCircleOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Timeline, Button, Space, Typography, Tooltip } from 'antd';
+import { CheckCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 
 const { Text } = Typography;
 
@@ -12,10 +12,16 @@ interface TimelineEntry {
   actor?: string;
 }
 
+interface AvailableAction {
+  action: string;
+  label: string;
+  permitted?: boolean;
+}
+
 interface WorkflowTimelineProps {
   entries: TimelineEntry[];
   currentState: string;
-  availableActions?: Array<{ action: string; label: string }>;
+  availableActions?: AvailableAction[];
   onAction?: (action: string) => void;
   loading?: boolean;
 }
@@ -44,17 +50,28 @@ export function WorkflowTimeline({ entries, currentState, availableActions = [],
       <Timeline items={items} />
       {availableActions.length > 0 && (
         <Space wrap style={{ marginTop: 8 }}>
-          {availableActions.map(({ action, label }) => (
-            <Button
-              key={action}
-              type={action === 'approve' || action === 'validate' ? 'primary' : 'default'}
-              danger={action === 'reject' || action === 'cancel'}
-              onClick={() => onAction?.(action)}
-              loading={loading}
-            >
-              {label}
-            </Button>
-          ))}
+          {availableActions.map(({ action, label, permitted = true }) => {
+            const btn = (
+              <Button
+                key={action}
+                type={action === 'approve' || action === 'validate' || action === 'process' ? 'primary' : 'default'}
+                danger={action === 'reject' || action === 'cancel'}
+                onClick={() => permitted && onAction?.(action)}
+                loading={loading}
+                disabled={!permitted}
+              >
+                {label}
+              </Button>
+            );
+            if (!permitted) {
+              return (
+                <Tooltip key={action} title="You don't have permission for this action">
+                  {btn}
+                </Tooltip>
+              );
+            }
+            return btn;
+          })}
         </Space>
       )}
     </div>

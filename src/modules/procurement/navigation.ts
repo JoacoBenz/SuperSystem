@@ -38,6 +38,10 @@ export const procurementNavigation: NavigationItem[] = [
     label: 'Purchase Orders',
     icon: 'ShoppingCartOutlined',
     requiredPermissions: ['procurement.purchase_order.read'],
+    badge: {
+      countEndpoint: '/api/v1/procurement/purchase-requests?status=in_procurement&count_only=true',
+      permission: 'procurement.purchase_request.process',
+    },
   },
   {
     key: '/procurement/receptions',
