@@ -26,6 +26,9 @@ interface WorkflowTimelineProps {
   loading?: boolean;
 }
 
+const PRIMARY_ACTIONS = ['approve', 'validate', 'start_procurement', 'schedule_payment', 'record_purchase', 'record_reception', 'close', 'submit'];
+const DANGER_ACTIONS = ['reject', 'cancel'];
+
 export function WorkflowTimeline({ entries, currentState, availableActions = [], onAction, loading }: WorkflowTimelineProps) {
   const items = entries.map((entry, index) => ({
     color: index === entries.length - 1 ? 'blue' : 'green',
@@ -51,11 +54,13 @@ export function WorkflowTimeline({ entries, currentState, availableActions = [],
       {availableActions.length > 0 && (
         <Space wrap style={{ marginTop: 8 }}>
           {availableActions.map(({ action, label, permitted = true }) => {
+            const isPrimary = PRIMARY_ACTIONS.includes(action);
+            const isDanger = DANGER_ACTIONS.includes(action);
             const btn = (
               <Button
                 key={action}
-                type={action === 'approve' || action === 'validate' || action === 'process' ? 'primary' : 'default'}
-                danger={action === 'reject' || action === 'cancel'}
+                type={isPrimary ? 'primary' : 'default'}
+                danger={isDanger}
                 onClick={() => permitted && onAction?.(action)}
                 loading={loading}
                 disabled={!permitted}

@@ -24,7 +24,7 @@ const config: StateMachineConfig = {
 };
 
 const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
-  // Submit
+  // ── Requester actions ──────────────────────────────────────────────
   {
     action: 'submit',
     from: ['draft', 'returned_by_validator', 'returned_by_approver'],
@@ -38,7 +38,7 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     }],
   },
 
-  // Validate
+  // ── Validator actions ──────────────────────────────────────────────
   {
     action: 'validate',
     from: 'submitted',
@@ -47,10 +47,8 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     requiredPermissions: ['procurement.purchase_request.validate'],
     segregationRule: 'validate',
   },
-
-  // Return by validator
   {
-    action: 'return',
+    action: 'return_to_requester',
     from: 'submitted',
     to: 'returned_by_validator',
     label: 'Return to Requester',
@@ -58,27 +56,23 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     segregationRule: 'validate',
   },
 
-  // Approve
+  // ── Approver actions ───────────────────────────────────────────────
   {
     action: 'approve',
     from: 'validated',
-    to: (ctx) => ctx.hasBuyerUsers ? 'in_procurement' : 'approved',
+    to: 'approved',
     label: 'Approve',
     requiredPermissions: ['procurement.purchase_request.approve'],
     segregationRule: 'approve',
   },
-
-  // Return by approver
   {
-    action: 'return',
+    action: 'return_to_requester',
     from: 'validated',
     to: 'returned_by_approver',
     label: 'Return to Requester',
     requiredPermissions: ['procurement.purchase_request.return'],
     segregationRule: 'approve',
   },
-
-  // Reject
   {
     action: 'reject',
     from: ['submitted', 'validated'],
@@ -87,36 +81,33 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     requiredPermissions: ['procurement.purchase_request.reject'],
   },
 
-  // Process
+  // ── Buyer actions ──────────────────────────────────────────────────
   {
-    action: 'process',
-    from: ['approved', 'in_procurement'],
+    action: 'start_procurement',
+    from: 'approved',
     to: 'in_procurement',
-    label: 'Process',
+    label: 'Start Procurement',
     requiredPermissions: ['procurement.purchase_request.process'],
     segregationRule: 'purchase',
   },
-
-  // Schedule payment
   {
     action: 'schedule_payment',
     from: 'in_procurement',
     to: 'payment_scheduled',
     label: 'Schedule Payment',
     requiredPermissions: ['procurement.purchase_request.schedule_payment'],
+    segregationRule: 'purchase',
   },
-
-  // Record purchase
   {
     action: 'record_purchase',
-    from: ['approved', 'in_procurement', 'payment_scheduled'],
+    from: 'payment_scheduled',
     to: 'purchased',
     label: 'Record Purchase',
     requiredPermissions: ['procurement.purchase_order.create'],
     segregationRule: 'purchase',
   },
 
-  // Record reception
+  // ── Requester: reception ───────────────────────────────────────────
   {
     action: 'record_reception',
     from: 'purchased',
@@ -129,24 +120,37 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     },
     label: 'Record Reception',
     requiredPermissions: ['procurement.reception.create'],
+    segregationRule: 'receive',
   },
 
-  // Close
+  // ── Treasurer: close ───────────────────────────────────────────────
   {
     action: 'close',
     from: ['received', 'received_with_issues'],
     to: 'closed',
-    label: 'Close',
+    label: 'Close Request',
     requiredPermissions: ['procurement.purchase_request.close'],
   },
 
-  // Cancel
+  // ── Cancel (requester: early stages, buyer: procurement stages) ────
   {
     action: 'cancel',
-    from: ['draft', 'submitted', 'validated', 'approved', 'in_procurement', 'payment_scheduled'],
+    from: ['draft', 'submitted', 'returned_by_validator', 'returned_by_approver'],
     to: 'cancelled',
-    label: 'Cancel',
+    label: 'Cancel Request',
     requiredPermissions: ['procurement.purchase_request.cancel'],
+    guards: [{
+      name: 'is_owner_or_approver',
+      description: 'Only the requester can cancel in early stages',
+      check: ctx => ({ pass: ctx.userId === ctx.requesterId }),
+    }],
+  },
+  {
+    action: 'cancel',
+    from: ['approved', 'in_procurement', 'payment_scheduled'],
+    to: 'cancelled',
+    label: 'Cancel Request',
+    requiredPermissions: ['procurement.purchase_request.process'],
   },
 ];
 

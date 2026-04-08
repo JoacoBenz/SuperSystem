@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Descriptions, Typography, Divider, Table, App, Modal, Input, Space, Spin, Tooltip, Button } from 'antd';
+import { Card, Descriptions, Typography, Table, App, Modal, Input, Space, Spin, Button, Result } from 'antd';
 import { CopyOutlined } from '@ant-design/icons';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
@@ -8,13 +8,36 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { WorkflowTimeline } from '@/components/ui/WorkflowTimeline';
 import { PURCHASE_REQUEST_STATUS_LABELS, PURCHASE_REQUEST_STATUS_COLORS } from '@/src/modules/procurement/types';
 
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
 interface AvailableAction {
   action: string;
   label: string;
   permitted: boolean;
 }
+
+// Actions that should prompt for notes before executing
+const ACTIONS_REQUIRING_NOTES = [
+  'reject', 'return_to_requester', 'validate', 'approve',
+];
+
+// Human-readable success messages per action
+const ACTION_SUCCESS_MESSAGES: Record<string, string> = {
+  submit: 'Request submitted for review',
+  validate: 'Request validated successfully',
+  return_to_requester: 'Request returned to requester',
+  approve: 'Request approved',
+  reject: 'Request rejected',
+  start_procurement: 'Procurement process started',
+  schedule_payment: 'Payment scheduled',
+  record_purchase: 'Purchase recorded',
+  record_reception: 'Reception recorded',
+  close: 'Request closed',
+  cancel: 'Request cancelled',
+};
+
+// Terminal and completed states where we show a result banner
+const TERMINAL_STATES = ['rejected', 'cancelled', 'closed'];
 
 export default function PurchaseRequestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -65,12 +88,13 @@ export default function PurchaseRequestDetailPage() {
         return;
       }
 
-      message.success(`Action "${action}" completed`);
+      const successMsg = ACTION_SUCCESS_MESSAGES[action] ?? 'Action completed';
+      message.success(successMsg);
       setNotesModal(null);
       setNotes('');
       fetchData();
     } catch {
-      message.error('An error occurred');
+      message.error('An unexpected error occurred');
     } finally {
       setActionLoading(false);
     }
@@ -79,15 +103,26 @@ export default function PurchaseRequestDetailPage() {
   if (loading) return <div style={{ textAlign: 'center', padding: 60 }}><Spin size="large" /></div>;
   if (!pr) return <div><Title level={4}>Purchase Request not found</Title></div>;
 
-  const actionsNeedingNotes = ['reject', 'return', 'validate', 'approve'];
+  const isTerminal = TERMINAL_STATES.includes(pr.status);
 
   const timelineEntries = [
     { state: 'draft', label: 'Created', timestamp: pr.createdAt },
-    ...(pr.submittedAt ? [{ state: 'submitted', label: 'Submitted', timestamp: pr.submittedAt }] : []),
+    ...(pr.submittedAt ? [{ state: 'submitted', label: 'Submitted for Review', timestamp: pr.submittedAt }] : []),
     ...(pr.validatedAt ? [{ state: 'validated', label: 'Validated', timestamp: pr.validatedAt }] : []),
     ...(pr.approvedAt ? [{ state: 'approved', label: 'Approved', timestamp: pr.approvedAt }] : []),
+    ...(pr.processedAt ? [{ state: 'in_procurement', label: 'Procurement Started', timestamp: pr.processedAt }] : []),
+    ...(pr.scheduledPaymentDate ? [{ state: 'payment_scheduled', label: 'Payment Scheduled', timestamp: pr.scheduledPaymentDate }] : []),
+    ...(pr.status === 'purchased' || pr.status === 'received' || pr.status === 'received_with_issues' || pr.status === 'closed'
+      ? [{ state: 'purchased', label: 'Purchased' }] : []),
+    ...(pr.status === 'received' || pr.status === 'closed'
+      ? [{ state: 'received', label: 'Received' }] : []),
+    ...(pr.status === 'received_with_issues'
+      ? [{ state: 'received_with_issues', label: 'Received with Issues' }] : []),
     ...(pr.rejectedAt ? [{ state: 'rejected', label: 'Rejected', timestamp: pr.rejectedAt }] : []),
-    ...(pr.processedAt ? [{ state: 'processed', label: 'Processed', timestamp: pr.processedAt }] : []),
+    ...(pr.status === 'cancelled' ? [{ state: 'cancelled', label: 'Cancelled' }] : []),
+    ...(pr.status === 'closed' ? [{ state: 'closed', label: 'Closed' }] : []),
+    ...(pr.status === 'returned_by_validator' ? [{ state: 'returned_by_validator', label: 'Returned by Validator' }] : []),
+    ...(pr.status === 'returned_by_approver' ? [{ state: 'returned_by_approver', label: 'Returned by Approver' }] : []),
   ];
 
   const itemColumns = [
@@ -128,22 +163,38 @@ export default function PurchaseRequestDetailPage() {
         <Table columns={itemColumns} dataSource={pr.items ?? []} rowKey="id" pagination={false} size="small" />
       </Card>
 
-      <Card title="Workflow" style={{ marginTop: 16 }}>
-        <WorkflowTimeline
-          entries={timelineEntries}
-          currentState={pr.status}
-          availableActions={availableActions}
-          loading={actionLoading}
-          onAction={(action) => {
-            if (actionsNeedingNotes.includes(action)) {
-              const label = availableActions.find(a => a.action === action)?.label ?? action;
-              setNotesModal({ action, label });
-            } else {
-              handleAction(action);
+      {isTerminal ? (
+        <Card style={{ marginTop: 16 }}>
+          <Result
+            status={pr.status === 'closed' ? 'success' : pr.status === 'rejected' ? 'error' : 'info'}
+            title={PURCHASE_REQUEST_STATUS_LABELS[pr.status as keyof typeof PURCHASE_REQUEST_STATUS_LABELS] ?? pr.status}
+            subTitle={
+              pr.rejectionReason
+                ? `Reason: ${pr.rejectionReason}`
+                : pr.status === 'closed'
+                ? 'This request has been completed and closed.'
+                : 'This request has been cancelled.'
             }
-          }}
-        />
-      </Card>
+          />
+        </Card>
+      ) : (
+        <Card title="Workflow" style={{ marginTop: 16 }}>
+          <WorkflowTimeline
+            entries={timelineEntries}
+            currentState={pr.status}
+            availableActions={availableActions}
+            loading={actionLoading}
+            onAction={(action) => {
+              if (ACTIONS_REQUIRING_NOTES.includes(action)) {
+                const label = availableActions.find(a => a.action === action)?.label ?? action;
+                setNotesModal({ action, label });
+              } else {
+                handleAction(action);
+              }
+            }}
+          />
+        </Card>
+      )}
 
       <Modal
         title={notesModal?.label}

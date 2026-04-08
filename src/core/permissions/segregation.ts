@@ -36,4 +36,9 @@ export const PROCUREMENT_SEGREGATION: Record<string, SegregationRule> = {
     description: 'Cannot purchase if approver',
     conflictingActors: [{ field: 'approvedById', label: 'approver' }],
   },
+  receive: {
+    id: 'receive',
+    description: 'Cannot receive if buyer who processed the purchase',
+    conflictingActors: [{ field: 'processedById', label: 'buyer who processed this purchase' }],
+  },
 };

@@ -304,13 +304,25 @@ export class PurchaseRequestService {
       throw new ApiError('CONFLICT', 'This record has been modified by another user', 409);
     }
 
-    // Check segregation
+    // Find matching transition
     const transition = purchaseRequestWorkflow['transitions'].find((t: any) => {
       const fromStates = Array.isArray(t.from) ? t.from : [t.from];
       return fromStates.includes(pr.status) && t.action === action;
     });
 
-    if (transition?.segregationRule) {
+    if (!transition) {
+      throw new ApiError('BAD_REQUEST', `Action "${action}" is not available for status "${pr.status}"`, 400);
+    }
+
+    // Check permissions
+    const userPerms = new Set(this.session.permissions);
+    const missingPerms = transition.requiredPermissions.filter((p: string) => !userPerms.has(p));
+    if (missingPerms.length > 0) {
+      throw new ApiError('FORBIDDEN', 'You do not have permission to perform this action', 403);
+    }
+
+    // Check segregation
+    if (transition.segregationRule) {
       const rule = PROCUREMENT_SEGREGATION[transition.segregationRule];
       if (rule) {
         const result = checkSegregation(rule, this.session.userId, pr as any);
@@ -328,7 +340,7 @@ export class PurchaseRequestService {
       approvedById: pr.approvedById,
       departmentId: pr.departmentId,
       estimatedTotal: pr.estimatedTotal ? Number(pr.estimatedTotal) : null,
-      hasBuyerUsers: true, // TODO: check if tenant has buyer users
+      hasBuyerUsers: true,
       receptionConforming: true,
       allItemsReceived: false,
       hasIssues: false,
@@ -363,10 +375,16 @@ export class PurchaseRequestService {
         updateData.rejectedAt = new Date();
         if (notes) updateData.rejectionReason = notes;
         break;
-      case 'process':
+      case 'start_procurement':
         updateData.processedById = this.session.userId;
         updateData.processedAt = new Date();
         if (notes) updateData.processingNotes = notes;
+        break;
+      case 'schedule_payment':
+        updateData.scheduledPaymentDate = new Date();
+        break;
+      case 'record_purchase':
+        // purchasedAt would be tracked via PurchaseOrder entity
         break;
     }
 
@@ -386,7 +404,7 @@ export class PurchaseRequestService {
       metadata: { notes },
     });
 
-    return updated;
+    return { ...updated, _transitionLabel: transition.label };
   }
 
   private async saveItemsForReuse(items: Array<{ description: string; unit?: string; estimatedPrice?: number | null; productUrl?: string | null }>) {

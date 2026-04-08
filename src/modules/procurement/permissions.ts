@@ -44,6 +44,7 @@ export const procurementRoles: RoleDefinition[] = [
       'procurement.purchase_request.read_own',
       'procurement.purchase_request.update_own',
       'procurement.purchase_request.submit',
+      'procurement.purchase_request.cancel',
       'procurement.reception.create',
       'procurement.reception.read',
       'procurement.vendor.read',
