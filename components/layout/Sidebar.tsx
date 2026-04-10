@@ -202,23 +202,26 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
       trigger={null}
       collapsible
       collapsed={collapsed}
-      style={{ minHeight: '100vh' }}
+      width={220}
+      style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden', flex: '0 0 220px', maxWidth: 220, minWidth: 220, width: 220 }}
     >
-      <div style={{ height: 32, margin: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: collapsed ? 14 : 18 }}>
+      <div style={{ height: 32, margin: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: collapsed ? 14 : 18, flexShrink: 0 }}>
         {collapsed ? 'ERP' : 'ERP Platform'}
       </div>
-      {loading ? (
-        <div style={{ textAlign: 'center', padding: 20 }}><Spin size="small" /></div>
-      ) : (
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[pathname]}
-          defaultOpenKeys={[openKey]}
-          items={menuItems}
-          onClick={({ key }) => router.push(key)}
-        />
-      )}
+      <div style={{ flex: 1, overflowY: 'auto', scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.15) transparent' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 20 }}><Spin size="small" /></div>
+        ) : (
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[pathname]}
+            defaultOpenKeys={[openKey]}
+            items={menuItems}
+            onClick={({ key }) => router.push(key)}
+          />
+        )}
+      </div>
     </Sider>
   );
 }

@@ -11,7 +11,6 @@ const { Title, Text } = Typography;
 const ORG_ROLE_OPTIONS = [
   { value: 'member', label: 'Member' },
   { value: 'admin', label: 'Admin' },
-  { value: 'super_admin', label: 'Super Admin' },
 ];
 
 const MODULE_COLORS: Record<string, string> = {
@@ -141,7 +140,7 @@ export default function UsersPage() {
     { title: 'Email', dataIndex: 'email', key: 'email', sorter: (a: any, b: any) => a.email.localeCompare(b.email), ...getColumnSearchProps('email') },
     {
       title: 'Org Role', dataIndex: 'orgRole', key: 'orgRole', width: 120,
-      filters: [{ text: 'Admin', value: 'admin' }, { text: 'Member', value: 'member' }, { text: 'Super Admin', value: 'super_admin' }],
+      filters: [...new Set(data.map((u: any) => u.orgRole))].map((r: string) => ({ text: r.charAt(0).toUpperCase() + r.slice(1).replace('_', ' '), value: r })),
       onFilter: (value: any, record: any) => record.orgRole === value,
       render: (r: string) => <Tag color={r === 'admin' ? 'blue' : r === 'super_admin' ? 'purple' : 'default'}>{r}</Tag>,
     },
@@ -163,10 +162,10 @@ export default function UsersPage() {
           grouped[info.moduleKey].roles.push(info.roleName);
         }
         return (
-          <Space orientation="vertical" size={2}>
+          <Space orientation="vertical" size={6}>
             {Object.entries(grouped).map(([key, g]) => (
-              <div key={key}>
-                <Tag color={MODULE_COLORS[key] ?? 'default'} style={{ fontWeight: 500 }}>{g.module}</Tag>
+              <div key={key} style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+                <Tag color={MODULE_COLORS[key] ?? 'default'} style={{ fontWeight: 500, marginRight: 0 }}>{g.module}</Tag>
                 <Text type="secondary" style={{ fontSize: 12 }}>{g.roles.join(', ')}</Text>
               </div>
             ))}

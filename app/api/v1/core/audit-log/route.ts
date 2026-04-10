@@ -43,12 +43,15 @@ export const GET = withAuth(
       db.auditLog.count({ where: where as any }),
     ]);
 
+    // Convert BigInt ids to strings for JSON serialization
+    const safeData = data.map(({ id, ...rest }) => ({ id: id.toString(), ...rest }));
+
     // Log this data access
     ctx.audit.log({
       action: 'read', resource: 'audit_log', eventType: 'data_access',
       metadata: { filters: { moduleId, resource, userId, eventType, from, to }, resultCount: total },
     }).catch(() => {});
 
-    return paginated(data, total, page, pageSize);
+    return paginated(safeData, total, page, pageSize);
   },
 );
