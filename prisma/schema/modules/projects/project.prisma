@@ -1,0 +1,22 @@
+model Project {
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @map("tenant_id")
+  name        String    @db.VarChar(255)
+  description String?   @db.Text
+  status      String    @default("planning") @db.VarChar(50)
+  priority    String    @default("medium") @db.VarChar(20)
+  budget      Decimal?  @db.Decimal(15, 2)
+  currency    String    @default("USD") @db.VarChar(3)
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  managerId   Int?      @map("manager_id")
+  createdBy   Int       @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tasks       Task[]
+
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("projects")
+}

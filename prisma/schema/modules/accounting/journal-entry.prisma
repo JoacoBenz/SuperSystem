@@ -1,0 +1,18 @@
+model JournalEntry {
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @map("tenant_id")
+  entryNumber String    @map("entry_number") @db.VarChar(50)
+  date        DateTime  @default(now())
+  description String    @db.VarChar(500)
+  status      String    @default("draft") @db.VarChar(20)
+  createdBy   Int       @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  lines       JournalLine[]
+
+  @@unique([tenantId, entryNumber])
+  @@index([tenantId])
+  @@index([tenantId, status])
+  @@map("journal_entries")
+}

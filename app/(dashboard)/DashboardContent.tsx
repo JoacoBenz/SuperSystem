@@ -1,7 +1,8 @@
 'use client';
 
-import { Typography, Row, Col, Card, Statistic, Table, Tag, Spin } from 'antd';
+import { Typography, Row, Col, Card, Table, Tag, Spin } from 'antd';
 import { StatCard } from '@/components/ui/StatCard';
+import { SoonWithAI } from '@/components/ui/SoonWithAI';
 import { useEffect, useState } from 'react';
 import {
   FileTextOutlined,
@@ -10,6 +11,7 @@ import {
   TeamOutlined,
   ClusterOutlined,
   AppstoreOutlined,
+  DollarOutlined,
 } from '@ant-design/icons';
 
 const { Title } = Typography;
@@ -25,6 +27,7 @@ export function DashboardContent({ orgRole, permissions }: DashboardContentProps
     pendingApprovals: 0,
     pendingValidations: 0,
     inProcurement: 0,
+    pendingClosure: 0,
   });
   const [platformStats, setPlatformStats] = useState<{ tenants: any[] } | null>(null);
   const [loading, setLoading] = useState(true);
@@ -50,10 +53,11 @@ export function DashboardContent({ orgRole, permissions }: DashboardContentProps
             return data.count ?? 0;
           };
 
-          const [submitted, validated, inProc] = await Promise.all([
+          const [submitted, validated, inProc, received] = await Promise.all([
             fetchCount('submitted'),
             fetchCount('validated'),
             fetchCount('in_procurement'),
+            fetchCount('received'),
           ]);
 
           setStats({
@@ -61,6 +65,7 @@ export function DashboardContent({ orgRole, permissions }: DashboardContentProps
             pendingApprovals: validated,
             pendingValidations: submitted,
             inProcurement: inProc,
+            pendingClosure: received,
           });
         } catch {} finally {
           setLoading(false);
@@ -148,7 +153,13 @@ export function DashboardContent({ orgRole, permissions }: DashboardContentProps
   // Regular users: module-specific dashboard
   return (
     <div>
-      <Title level={3}>Dashboard</Title>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '0.5em' }}>
+        <Title level={3} style={{ margin: 0 }}>Dashboard</Title>
+        <SoonWithAI
+          feature="AI Copilot"
+          description={'Ask in plain language — "top 5 customers by revenue this quarter" — and get instant answers, charts, and actions across every module.'}
+        />
+      </div>
       <Row gutter={[16, 16]}>
         {hasPermission('procurement.purchase_request.read_own') && (
           <Col xs={24} sm={12} lg={6}>
@@ -191,6 +202,17 @@ export function DashboardContent({ orgRole, permissions }: DashboardContentProps
               prefix={<ShoppingCartOutlined />}
               loading={loading}
               color="#722ed1"
+            />
+          </Col>
+        )}
+        {hasPermission('procurement.purchase_request.close') && (
+          <Col xs={24} sm={12} lg={6}>
+            <StatCard
+              title="Pending Closure"
+              value={stats.pendingClosure}
+              prefix={<DollarOutlined />}
+              loading={loading}
+              color="#13c2c2"
             />
           </Col>
         )}

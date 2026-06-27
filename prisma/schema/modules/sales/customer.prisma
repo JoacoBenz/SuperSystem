@@ -1,0 +1,20 @@
+model Customer {
+  id           Int       @id @default(autoincrement())
+  tenantId     Int       @map("tenant_id")
+  name         String    @db.VarChar(255)
+  email        String?   @db.VarChar(255)
+  phone        String?   @db.VarChar(50)
+  address      String?   @db.Text
+  taxId        String?   @map("tax_id") @db.VarChar(100)
+  active       Boolean   @default(true)
+  notes        String?   @db.Text
+  createdBy    Int       @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  salesOrders  SalesOrder[]
+
+  @@map("customers")
+  @@index([tenantId, active])
+  @@index([tenantId, name])
+}

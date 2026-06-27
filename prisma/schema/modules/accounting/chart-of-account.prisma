@@ -1,0 +1,23 @@
+model ChartOfAccount {
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @map("tenant_id")
+  code        String    @db.VarChar(20)
+  name        String    @db.VarChar(255)
+  type        String    @default("asset") @db.VarChar(20)
+  parentId    Int?      @map("parent_id")
+  description String?   @db.Text
+  balance     Decimal   @default(0) @db.Decimal(15, 2)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdBy   Int       @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  parent      ChartOfAccount?  @relation("AccountHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children    ChartOfAccount[] @relation("AccountHierarchy")
+  lines       JournalLine[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId])
+  @@index([tenantId, type])
+  @@map("chart_of_accounts")
+}

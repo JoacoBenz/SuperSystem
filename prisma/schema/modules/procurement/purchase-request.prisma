@@ -49,6 +49,7 @@ model PurchaseRequest {
   orders     PurchaseOrder[]
   receptions Reception[]
   comments   PurchaseRequestComment[]
+  quotations        Quotation[]
 
   @@unique([tenantId, id])
   @@unique([tenantId, number])

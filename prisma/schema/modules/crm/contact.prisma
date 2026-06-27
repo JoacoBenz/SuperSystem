@@ -1,0 +1,22 @@
+model CrmContact {
+  id         Int      @id @default(autoincrement())
+  tenantId   Int      @map("tenant_id")
+  companyId  Int?     @map("company_id")
+  firstName  String   @map("first_name") @db.VarChar(100)
+  lastName   String   @map("last_name") @db.VarChar(100)
+  email      String?  @db.VarChar(255)
+  phone      String?  @db.VarChar(50)
+  title      String?  @db.VarChar(100)
+  notes      String?  @db.Text
+  active     Boolean  @default(true)
+  createdBy  Int      @map("created_by")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  company    CrmCompany? @relation(fields: [companyId], references: [id])
+  opportunities CrmOpportunity[]
+
+  @@index([tenantId])
+  @@index([tenantId, companyId])
+  @@map("crm_contacts")
+}

@@ -1,4 +1,4 @@
-import type { ModuleDefinition, NavigationItem, DashboardWidget, ReportDefinition } from './types';
+import type { ModuleDefinition, NavigationItem, DashboardWidget } from './types';
 import type { PermissionDefinition } from '@/src/core/permissions/types';
 import { prisma } from '@/src/core/db/client';
 import { cached } from '@/src/core/cache';
@@ -87,10 +87,6 @@ class ModuleRegistry {
       }
     }
     return perms;
-  }
-
-  getAllReports(): ReportDefinition[] {
-    return Array.from(this.modules.values()).flatMap(m => m.reports);
   }
 }
 

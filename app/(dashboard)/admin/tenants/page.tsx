@@ -1,6 +1,6 @@
 'use client';
 
-import { Table, Typography, Tag, Card, Descriptions, Modal, Button, Space, Row, Col, Spin } from 'antd';
+import { Table, Typography, Tag, Card, Descriptions, Modal, Button, Spin } from 'antd';
 import { EyeOutlined } from '@ant-design/icons';
 import { useEffect, useState } from 'react';
 import { useColumnSearch } from '@/components/ui/columnSearch';

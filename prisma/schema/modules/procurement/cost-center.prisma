@@ -10,6 +10,7 @@ model CostCenter {
   createdAt     DateTime  @default(now()) @map("created_at")
 
   purchaseRequests PurchaseRequest[]
+  budgets          Budget[]
 
   @@unique([tenantId, code])
   @@map("cost_centers")

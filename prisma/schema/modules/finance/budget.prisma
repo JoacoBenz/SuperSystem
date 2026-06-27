@@ -1,0 +1,21 @@
+model Budget {
+  id           Int       @id @default(autoincrement())
+  tenantId     Int       @map("tenant_id")
+  name         String    @db.VarChar(255)
+  costCenterId Int?      @map("cost_center_id")
+  departmentId Int?      @map("department_id")
+  fiscalYear   Int       @map("fiscal_year")
+  amount       Decimal   @db.Decimal(15, 2)
+  currency     String    @default("USD") @db.VarChar(10)
+  notes        String?   @db.Text
+  createdBy    Int       @map("created_by")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  costCenter   CostCenter?  @relation(fields: [costCenterId], references: [id])
+  department   Department?  @relation(fields: [departmentId], references: [id])
+
+  @@map("budgets")
+  @@unique([tenantId, costCenterId, fiscalYear])
+  @@index([tenantId, fiscalYear])
+}

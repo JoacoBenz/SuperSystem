@@ -2,6 +2,7 @@ import { withAuth } from '@/src/core/api/handler';
 import { ok } from '@/src/core/api/response';
 import { PurchaseRequestService } from '@/src/modules/procurement/services/purchase-request.service';
 import { transitionSchema } from '@/src/modules/procurement/validators/purchase-request.schema';
+// permissions enforced in state machine engine
 
 export const POST = withAuth(
   { moduleId: 'procurement', body: transitionSchema },

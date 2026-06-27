@@ -1,0 +1,17 @@
+model JournalLine {
+  id             Int       @id @default(autoincrement())
+  journalEntryId Int       @map("journal_entry_id")
+  tenantId       Int       @map("tenant_id")
+  accountId      Int       @map("account_id")
+  description    String?   @db.VarChar(500)
+  debit          Decimal   @default(0) @db.Decimal(15, 2)
+  credit         Decimal   @default(0) @db.Decimal(15, 2)
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  journalEntry   JournalEntry   @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        ChartOfAccount @relation(fields: [accountId], references: [id])
+
+  @@index([journalEntryId])
+  @@index([accountId])
+  @@map("journal_lines")
+}

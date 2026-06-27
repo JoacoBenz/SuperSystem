@@ -33,6 +33,10 @@ export const procurementPermissions: PermissionDefinition[] = [
   // Cost Centers
   { resource: 'cost_center', action: 'read', description: 'View cost centers' },
   { resource: 'cost_center', action: 'manage', description: 'Create, edit, delete cost centers' },
+
+  // Quotations
+  { resource: 'quotation', action: 'read', description: 'View vendor quotations' },
+  { resource: 'quotation', action: 'manage', description: 'Create, edit, delete quotations' },
 ];
 
 export const procurementRoles: RoleDefinition[] = [
@@ -48,6 +52,8 @@ export const procurementRoles: RoleDefinition[] = [
       'procurement.reception.read',
       'procurement.vendor.read',
       'procurement.cost_center.read',
+      'procurement.quotation.read',
+      'procurement.quotation.manage',
     ],
   },
   {
@@ -59,6 +65,8 @@ export const procurementRoles: RoleDefinition[] = [
       'procurement.purchase_request.return',
       'procurement.vendor.read',
       'procurement.cost_center.read',
+      'procurement.quotation.read',
+      'procurement.quotation.manage',
     ],
   },
   {
@@ -72,6 +80,8 @@ export const procurementRoles: RoleDefinition[] = [
       'procurement.purchase_request.cancel',
       'procurement.vendor.read',
       'procurement.cost_center.read',
+      'procurement.quotation.read',
+      'procurement.quotation.manage',
     ],
   },
   {
@@ -86,6 +96,8 @@ export const procurementRoles: RoleDefinition[] = [
       'procurement.vendor.manage',
       'procurement.vendor.read',
       'procurement.cost_center.read',
+      'procurement.quotation.read',
+      'procurement.quotation.manage',
     ],
   },
   {

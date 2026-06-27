@@ -3,9 +3,11 @@ import type { AuditService } from '@/src/core/audit/service';
 import type { SessionUser } from '@/src/shared/types/common';
 import type { CreatePurchaseRequestInput, UpdatePurchaseRequestInput } from '../validators/purchase-request.schema';
 import { purchaseRequestWorkflow } from '../workflows/purchase-request.workflow';
-import { checkSegregation, PROCUREMENT_SEGREGATION } from '@/src/core/permissions/segregation';
 import { ApiError } from '@/src/core/api/errors';
+import { TransitionError, GuardError } from '@/src/core/state-machine/errors';
+import { cached } from '@/src/core/cache';
 import type { PurchaseRequestWorkflowContext } from '../types';
+import { NotificationService } from '@/src/core/notifications/notification.service';
 
 export class PurchaseRequestService {
   constructor(
@@ -114,6 +116,7 @@ export class PurchaseRequestService {
         updatedBy: this.session.userId,
         items: {
           create: input.items.map(item => ({
+            tenantId: this.session.tenantId,
             description: item.description,
             quantity: Number(item.quantity),
             unit: item.unit,
@@ -219,19 +222,56 @@ export class PurchaseRequestService {
       throw new ApiError('CONFLICT', 'This record has been modified by another user', 409);
     }
 
-    // Check segregation
-    const transition = purchaseRequestWorkflow['transitions'].find((t: any) => {
-      const fromStates = Array.isArray(t.from) ? t.from : [t.from];
-      return fromStates.includes(pr.status) && t.action === action;
-    });
+    // Check if any user in the tenant holds the buyer (process) permission.
+    // Result is cached per tenant for 5 minutes to avoid a multi-join query on every approve transition.
+    const hasBuyerUsers = await cached(
+      `t:${this.session.tenantId}:procurement:has_buyer_users`,
+      300_000,
+      async () => {
+        const count = await this.db.user.count({
+          where: {
+            active: true,
+            deletedAt: null,
+            userRoles: {
+              some: {
+                role: {
+                  rolePermissions: {
+                    some: {
+                      permission: {
+                        moduleId: 'procurement',
+                        resource: 'purchase_request',
+                        action: 'process',
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+        return count > 0;
+      },
+    );
 
-    if (transition?.segregationRule) {
-      const rule = PROCUREMENT_SEGREGATION[transition.segregationRule];
-      if (rule) {
-        const result = checkSegregation(rule, this.session.userId, pr as any);
-        if (!result.allowed) {
-          throw new ApiError('FORBIDDEN', result.reason!, 403);
-        }
+    // Budget check for approve action
+    let budgetAvailable: boolean | undefined = undefined;
+    if (action === 'approve' && pr.costCenterId) {
+      const costCenter = await this.db.costCenter.findUnique({ where: { id: pr.costCenterId } });
+      if (costCenter?.annualBudget) {
+        const currentYear = new Date().getFullYear();
+        const committed = await this.db.purchaseRequest.aggregate({
+          where: {
+            costCenterId: pr.costCenterId,
+            status: { in: ['submitted', 'validated', 'approved', 'in_procurement', 'payment_scheduled', 'purchased'] },
+            id: { not: id },
+            createdAt: { gte: new Date(currentYear, 0, 1), lt: new Date(currentYear + 1, 0, 1) },
+            deletedAt: null,
+          },
+          _sum: { estimatedTotal: true },
+        });
+        const committedAmount = Number(committed._sum.estimatedTotal ?? 0);
+        const thisAmount = pr.estimatedTotal ? Number(pr.estimatedTotal) : 0;
+        budgetAvailable = committedAmount + thisAmount <= Number(costCenter.annualBudget);
       }
     }
 
@@ -243,14 +283,27 @@ export class PurchaseRequestService {
       approvedById: pr.approvedById,
       departmentId: pr.departmentId,
       estimatedTotal: pr.estimatedTotal ? Number(pr.estimatedTotal) : null,
-      hasBuyerUsers: true, // TODO: check if tenant has buyer users
+      hasBuyerUsers,
       receptionConforming: true,
       allItemsReceived: false,
       hasIssues: false,
+      budgetAvailable,
     };
 
-    // Execute state machine
-    const { newState } = await purchaseRequestWorkflow.transition(pr.status, action, context);
+    // Execute state machine (permissions + segregation enforced inside the engine)
+    const userPermissions = new Set(this.session.permissions);
+    let newState: string;
+    try {
+      ({ newState } = await purchaseRequestWorkflow.transition(pr.status, action, context, userPermissions));
+    } catch (err) {
+      if (err instanceof GuardError) {
+        throw new ApiError('FORBIDDEN', err.reason, 403);
+      }
+      if (err instanceof TransitionError) {
+        throw new ApiError('BAD_REQUEST', err.message, 400);
+      }
+      throw err;
+    }
 
     // Build update data based on action
     const updateData: Record<string, unknown> = {
@@ -289,6 +342,51 @@ export class PurchaseRequestService {
       where: { id },
       data: updateData as any,
     });
+
+    // Emit notifications (fire-and-forget)
+    const notifService = new NotificationService(this.session.tenantId);
+    (async () => {
+      try {
+        const prNumber = pr.number;
+        const prTitle = pr.title;
+        const prLink = `purchase_request`;
+        switch (action) {
+          case 'submit':
+            await notifService.notifyUsersWithPermission('procurement.purchase_request.validate', 'pr_submitted', 'Purchase Request Submitted', `PR ${prNumber} "${prTitle}" is ready for validation`, prLink, id);
+            break;
+          case 'validate':
+            await notifService.notifyUsersWithPermission('procurement.purchase_request.approve', 'pr_validated', 'Purchase Request Validated', `PR ${prNumber} "${prTitle}" has been validated and is awaiting approval`, prLink, id);
+            break;
+          case 'approve':
+            await notifService.notifyUser(pr.requesterId, 'pr_approved', 'Purchase Request Approved', `Your PR ${prNumber} "${prTitle}" has been approved`, prLink, id);
+            if (hasBuyerUsers) {
+              await notifService.notifyUsersWithPermission('procurement.purchase_request.process', 'pr_ready_to_process', 'Purchase Request Ready to Process', `PR ${prNumber} "${prTitle}" is ready for procurement`, prLink, id);
+            }
+            break;
+          case 'reject':
+            await notifService.notifyUser(pr.requesterId, 'pr_rejected', 'Purchase Request Rejected', `Your PR ${prNumber} "${prTitle}" has been rejected${notes ? ': ' + notes : ''}`, prLink, id);
+            break;
+          case 'return':
+            await notifService.notifyUser(pr.requesterId, 'pr_returned', 'Purchase Request Returned', `Your PR ${prNumber} "${prTitle}" has been returned for revision`, prLink, id);
+            break;
+          case 'cancel': {
+            const toNotify = [pr.validatedById, pr.approvedById].filter(Boolean) as number[];
+            for (const uid of toNotify) {
+              if (uid !== this.session.userId) {
+                await notifService.notifyUser(uid, 'pr_cancelled', 'Purchase Request Cancelled', `PR ${prNumber} "${prTitle}" has been cancelled`, prLink, id);
+              }
+            }
+            break;
+          }
+          case 'record_purchase':
+            await notifService.notifyUser(pr.requesterId, 'pr_purchased', 'Purchase Recorded', `Your PR ${prNumber} "${prTitle}" has been purchased`, prLink, id);
+            break;
+          case 'close':
+            await notifService.notifyUser(pr.requesterId, 'pr_closed', 'Purchase Request Closed', `PR ${prNumber} "${prTitle}" has been closed`, prLink, id);
+            break;
+        }
+      } catch { /* notifications are non-critical */ }
+    })();
 
     await this.audit.log({
       action: `transition.${action}`,

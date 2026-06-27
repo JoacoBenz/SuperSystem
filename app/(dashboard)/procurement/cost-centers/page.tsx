@@ -1,12 +1,13 @@
 'use client';
 
-import { Table, Button, Space, Typography, Row, Col, Modal, Form, Input, InputNumber, message, Popconfirm, Tag } from 'antd';
+import { Table, Button, Space, Typography, Row, Col, Modal, Form, Input, InputNumber, App, Popconfirm, Tag } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
 
 const { Title } = Typography;
 
 export default function CostCentersPage() {
+  const { message } = App.useApp();
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);

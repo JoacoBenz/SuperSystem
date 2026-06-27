@@ -1,0 +1,14 @@
+model StockAdjustment {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  description String   @db.VarChar(255)
+  quantity    Decimal  @db.Decimal(10, 2)
+  unit        String   @default("units") @db.VarChar(50)
+  reason      String   @db.VarChar(500)
+  notes       String?  @db.Text
+  createdBy   Int      @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("stock_adjustments")
+  @@index([tenantId])
+}

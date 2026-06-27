@@ -1,12 +1,11 @@
 'use client';
 
-import { Table, Typography, Select, DatePicker, Space, Tag, Input } from 'antd';
+import { Table, Typography, Select, Space, Tag, Input } from 'antd';
 import { useCallback, useEffect, useState } from 'react';
 import { useTenantSwitcher } from '@/components/providers/TenantSwitcher';
 import { useColumnSearch } from '@/components/ui/columnSearch';
 
 const { Title } = Typography;
-const { RangePicker } = DatePicker;
 
 const EVENT_TYPES = [
   { value: 'data_change', label: 'Data Change' },

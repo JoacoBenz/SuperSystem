@@ -12,6 +12,7 @@ model Department {
   parent   Department?  @relation("department_hierarchy", fields: [parentId], references: [id])
   children Department[] @relation("department_hierarchy")
   users    User[]       @relation("user_department")
+  budgets  Budget[]
 
   @@unique([tenantId, name])
   @@map("departments")

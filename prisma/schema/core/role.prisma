@@ -9,6 +9,7 @@ model Role {
 
   userRoles       UserRole[]
   rolePermissions RolePermission[]
+  delegations     Delegation[]     @relation("delegation_role")
 
   @@unique([tenantId, name])
   @@map("roles")
@@ -63,6 +64,7 @@ model Delegation {
 
   delegator User @relation("delegation_delegator", fields: [delegatorId], references: [id])
   delegate  User @relation("delegation_delegate", fields: [delegateId], references: [id])
+  role      Role @relation("delegation_role", fields: [roleId], references: [id])
 
   @@index([tenantId, delegateId, active])
   @@map("delegations")

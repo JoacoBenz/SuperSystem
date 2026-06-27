@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Form, Input, Select, Button, InputNumber, Space, Typography, message, Divider } from 'antd';
+import { Card, Form, Input, Select, Button, InputNumber, Space, Typography, App, Divider } from 'antd';
 import { PlusOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -11,6 +11,7 @@ const { TextArea } = Input;
 
 export default function NewPurchaseRequestPage() {
   const router = useRouter();
+  const { message } = App.useApp();
   const [form] = Form.useForm();
   const [loading, setLoading] = useState<'draft' | 'submit' | null>(null);
   const [vendors, setVendors] = useState<any[]>([]);

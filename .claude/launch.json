@@ -4,7 +4,7 @@
     {
       "name": "dev",
       "runtimeExecutable": "C:\\Program Files\\nodejs\\node.exe",
-      "runtimeArgs": ["node_modules/next/dist/bin/next", "dev", "-p", "3737"],
+      "runtimeArgs": ["D:\\Prueba1\\node_modules\\next\\dist\\bin\\next", "dev", "-p", "3737"],
       "port": 3737,
       "autoPort": false
     }

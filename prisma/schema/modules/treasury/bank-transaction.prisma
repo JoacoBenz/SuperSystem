@@ -1,0 +1,19 @@
+model BankTransaction {
+  id            Int       @id @default(autoincrement())
+  bankAccountId Int       @map("bank_account_id")
+  tenantId      Int       @map("tenant_id")
+  date          DateTime  @default(now())
+  description   String    @db.VarChar(500)
+  amount        Decimal   @db.Decimal(15, 2)
+  type          String    @default("credit") @db.VarChar(10)
+  reference     String?   @db.VarChar(255)
+  reconciled    Boolean   @default(false)
+  createdBy     Int       @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  bankAccount   BankAccount @relation(fields: [bankAccountId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([bankAccountId])
+  @@map("bank_transactions")
+}

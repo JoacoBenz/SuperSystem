@@ -1,0 +1,21 @@
+model Quotation {
+  id                Int             @id @default(autoincrement())
+  tenantId          Int             @map("tenant_id")
+  purchaseRequestId Int             @map("purchase_request_id")
+  vendorId          Int?            @map("vendor_id")
+  vendorName        String          @map("vendor_name") @db.VarChar(255)
+  amount            Decimal         @db.Decimal(15, 2)
+  currency          String          @default("USD") @db.VarChar(10)
+  notes             String?         @db.Text
+  validUntil        DateTime?       @map("valid_until") @db.Date
+  selected          Boolean         @default(false)
+  createdBy         Int             @map("created_by")
+  createdAt         DateTime        @default(now()) @map("created_at")
+  updatedAt         DateTime        @updatedAt @map("updated_at")
+
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id])
+  vendor            Vendor?         @relation(fields: [vendorId], references: [id])
+
+  @@map("quotations")
+  @@index([tenantId, purchaseRequestId])
+}

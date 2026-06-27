@@ -1,0 +1,20 @@
+model StockEntry {
+  id                    Int      @id @default(autoincrement())
+  tenantId              Int      @map("tenant_id")
+  receptionId           Int      @map("reception_id")
+  purchaseRequestItemId Int      @map("purchase_request_item_id")
+  description           String   @db.VarChar(255)
+  quantity              Decimal  @db.Decimal(10, 2)
+  unit                  String   @default("units") @db.VarChar(50)
+  unitCost              Decimal? @map("unit_cost") @db.Decimal(15, 2)
+  vendorId              Int?     @map("vendor_id")
+  conforming            Boolean  @default(true)
+  notes                 String?
+  receivedAt            DateTime @default(now()) @map("received_at")
+  createdBy             Int      @map("created_by")
+  createdAt             DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, receptionId])
+  @@index([tenantId, purchaseRequestItemId])
+  @@map("stock_entries")
+}

@@ -1,0 +1,40 @@
+model SalesOrder {
+  id           Int       @id @default(autoincrement())
+  tenantId     Int       @map("tenant_id")
+  customerId   Int       @map("customer_id")
+  orderNumber  String    @map("order_number") @db.VarChar(50)
+  status       String    @default("draft") @db.VarChar(20) // draft | confirmed | shipped | delivered | cancelled
+  totalAmount  Decimal   @default(0) @map("total_amount") @db.Decimal(15, 2)
+  currency     String    @default("USD") @db.VarChar(10)
+  notes        String?   @db.Text
+  createdBy    Int       @map("created_by")
+  confirmedAt  DateTime? @map("confirmed_at")
+  shippedAt    DateTime? @map("shipped_at")
+  deliveredAt  DateTime? @map("delivered_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  items        SalesOrderItem[]
+
+  @@map("sales_orders")
+  @@unique([tenantId, orderNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, customerId])
+}
+
+model SalesOrderItem {
+  id           Int     @id @default(autoincrement())
+  salesOrderId Int     @map("sales_order_id")
+  description  String  @db.VarChar(500)
+  quantity     Decimal @db.Decimal(10, 2)
+  unitPrice    Decimal @map("unit_price") @db.Decimal(15, 2)
+  totalPrice   Decimal @map("total_price") @db.Decimal(15, 2)
+  notes        String? @db.Text
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+
+  @@map("sales_order_items")
+  @@index([salesOrderId])
+}

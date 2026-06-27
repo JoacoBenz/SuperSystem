@@ -21,23 +21,43 @@ interface WorkflowTimelineProps {
 }
 
 export function WorkflowTimeline({ entries, currentState, availableActions = [], onAction, loading }: WorkflowTimelineProps) {
-  const items = entries.map((entry, index) => ({
-    color: index === entries.length - 1 ? 'blue' : 'green',
-    dot: index === entries.length - 1 ? <ClockCircleOutlined /> : <CheckCircleOutlined />,
-    children: (
-      <div>
-        <Text strong>{entry.label}</Text>
-        {entry.actor && <Text type="secondary" style={{ marginLeft: 8 }}>by {entry.actor}</Text>}
-        {entry.timestamp && (
-          <div>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              {new Date(entry.timestamp).toLocaleString()}
-            </Text>
-          </div>
-        )}
-      </div>
-    ),
-  }));
+  const FAIL_STATES = new Set(['rejected', 'cancelled']);
+  const DONE_STATES = new Set(['closed', 'received_with_issues', 'received']);
+
+  const items = entries.map((entry, index) => {
+    const isLast = index === entries.length - 1;
+    let color = 'green';
+    let icon = <CheckCircleOutlined />;
+    if (isLast) {
+      if (FAIL_STATES.has(entry.state)) {
+        color = 'red';
+        icon = <CloseCircleOutlined />;
+      } else if (DONE_STATES.has(entry.state)) {
+        color = 'green';
+        icon = <CheckCircleOutlined />;
+      } else {
+        color = 'blue';
+        icon = <ClockCircleOutlined />;
+      }
+    }
+    return {
+      color,
+      icon,
+      content: (
+        <div>
+          <Text strong>{entry.label}</Text>
+          {entry.actor && <Text type="secondary" style={{ marginLeft: 8 }}>by {entry.actor}</Text>}
+          {entry.timestamp && (
+            <div>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                {new Date(entry.timestamp).toLocaleString()}
+              </Text>
+            </div>
+          )}
+        </div>
+      ),
+    };
+  });
 
   return (
     <div>

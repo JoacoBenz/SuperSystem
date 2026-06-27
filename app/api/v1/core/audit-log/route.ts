@@ -49,6 +49,7 @@ export const GET = withAuth(
       metadata: { filters: { moduleId, resource, userId, eventType, from, to }, resultCount: total },
     }).catch(() => {});
 
-    return paginated(data, total, page, pageSize);
+    const serialized = data.map(row => ({ ...row, id: row.id.toString() }));
+    return paginated(serialized, total, page, pageSize);
   },
 );

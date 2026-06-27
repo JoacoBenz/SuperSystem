@@ -1,0 +1,20 @@
+model BankAccount {
+  id            Int       @id @default(autoincrement())
+  tenantId      Int       @map("tenant_id")
+  name          String    @db.VarChar(255)
+  bankName      String    @map("bank_name") @db.VarChar(255)
+  accountNumber String?   @map("account_number") @db.VarChar(100)
+  accountType   String    @default("checking") @map("account_type") @db.VarChar(50)
+  currency      String    @default("USD") @db.VarChar(3)
+  balance       Decimal   @default(0) @db.Decimal(15, 2)
+  isActive      Boolean   @default(true) @map("is_active")
+  notes         String?   @db.Text
+  createdBy     Int       @map("created_by")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  transactions  BankTransaction[]
+
+  @@index([tenantId])
+  @@map("bank_accounts")
+}

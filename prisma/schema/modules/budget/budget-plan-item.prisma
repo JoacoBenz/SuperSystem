@@ -1,0 +1,17 @@
+model BudgetPlanItem {
+  id            Int       @id @default(autoincrement())
+  budgetId      Int       @map("budget_id")
+  tenantId      Int       @map("tenant_id")
+  category      String    @db.VarChar(100)
+  description   String?   @db.VarChar(500)
+  plannedAmount Decimal   @default(0) @map("planned_amount") @db.Decimal(15, 2)
+  actualAmount  Decimal   @default(0) @map("actual_amount") @db.Decimal(15, 2)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  budgetPlan    BudgetPlan @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  @@index([budgetId])
+  @@index([tenantId])
+  @@map("budget_plan_items")
+}

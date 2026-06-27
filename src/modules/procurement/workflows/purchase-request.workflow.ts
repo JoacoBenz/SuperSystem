@@ -1,6 +1,7 @@
 import { StateMachine } from '@/src/core/state-machine/engine';
 import type { StateMachineConfig, TransitionConfig } from '@/src/core/state-machine/types';
 import type { PurchaseRequestWorkflowContext } from '../types';
+import { PROCUREMENT_SEGREGATION } from '@/src/core/permissions/segregation';
 
 const config: StateMachineConfig = {
   id: 'purchase_request',
@@ -66,6 +67,14 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
     label: 'Approve',
     requiredPermissions: ['procurement.purchase_request.approve'],
     segregationRule: 'approve',
+    guards: [{
+      name: 'budget_available',
+      description: 'Cost center annual budget must not be exceeded',
+      check: (ctx) => ({
+        pass: ctx.budgetAvailable !== false,
+        reason: 'Approval would exceed the cost center annual budget',
+      }),
+    }],
   },
 
   // Return by approver
@@ -153,6 +162,7 @@ const transitions: TransitionConfig<PurchaseRequestWorkflowContext>[] = [
 export const purchaseRequestWorkflow = new StateMachine<PurchaseRequestWorkflowContext>(
   config,
   transitions,
+  { segregationRules: PROCUREMENT_SEGREGATION },
 );
 
 export { config as purchaseRequestWorkflowConfig, transitions as purchaseRequestTransitions };

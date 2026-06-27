@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { PURCHASE_REQUEST_STATUS_LABELS, PURCHASE_REQUEST_STATUS_COLORS, URGENCY_OPTIONS } from '@/src/modules/procurement/types';
+import { SoonWithAI } from '@/components/ui/SoonWithAI';
 
 const { Title } = Typography;
 
@@ -78,7 +79,15 @@ export default function PurchaseRequestsPage() {
   return (
     <div>
       <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-        <Col><Title level={4} style={{ margin: 0 }}>Purchase Requests</Title></Col>
+        <Col>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 12 }}>
+            <Title level={4} style={{ margin: 0 }}>Purchase Requests</Title>
+            <SoonWithAI
+              feature="Vendor Recommendations"
+              description="Suggests the best vendor for each request from past price, lead time, and reliability — and auto-extracts line items from quote PDFs and emails."
+            />
+          </span>
+        </Col>
         <Col>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => router.push('/procurement/requests/new')}>
             New Request

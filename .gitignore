@@ -44,3 +44,9 @@ yarn-error.log*
 next-env.d.ts
 
 /app/generated/prisma
+
+# runtime file uploads (not source)
+/uploads/
+
+# local Claude backup
+.claude/.claude-backup/

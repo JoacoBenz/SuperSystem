@@ -3,7 +3,6 @@ import { prisma } from '@/src/core/db/client';
 import { resolveUserPermissions } from '@/src/core/permissions/delegation';
 import { credentialsProvider, googleProvider, microsoftProvider } from './providers';
 import { logger } from '@/src/core/logger';
-import { getTenantConfigBool, getTenantConfigValue } from '@/src/core/tenant/config';
 import { moduleRegistry } from '@/src/core/modules/registry';
 import '@/src/core/modules/loader';
 

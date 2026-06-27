@@ -15,7 +15,7 @@ export function useColumnSearch() {
         <Input
           ref={searchInput}
           placeholder={`Search ${dataIndex}`}
-          value={selectedKeys[0]}
+          value={selectedKeys[0] as string}
           onChange={e => setSelectedKeys(e.target.value ? [e.target.value] : [])}
           onPressEnter={() => confirm()}
           style={{ marginBottom: 8, display: 'block' }}
@@ -31,7 +31,7 @@ export function useColumnSearch() {
       const val = nested ? record[dataIndex]?.[nested] : record[dataIndex];
       return String(val ?? '').toLowerCase().includes(String(value).toLowerCase());
     },
-    onFilterDropdownOpenChange: (visible: boolean) => {
+    onFilterDropdownVisibleChange: (visible: boolean) => {
       if (visible) setTimeout(() => searchInput.current?.select(), 100);
     },
   });

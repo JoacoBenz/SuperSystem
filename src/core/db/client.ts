@@ -4,13 +4,14 @@ import pg from 'pg';
 
 function createPool() {
   const url = new URL(process.env.DATABASE_URL!);
+  const sslmode = url.searchParams.get('sslmode');
   return new pg.Pool({
     host: url.hostname,
     port: parseInt(url.port) || 5432,
     database: url.pathname.slice(1),
     user: decodeURIComponent(url.username),
     password: decodeURIComponent(url.password),
-    ssl: { rejectUnauthorized: false },
+    ssl: sslmode === 'disable' ? false : { rejectUnauthorized: false },
   });
 }
 

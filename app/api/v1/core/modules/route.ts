@@ -79,7 +79,6 @@ export const PATCH = withAuth(
     await ctx.audit.log({
       action: enabled ? 'enable' : 'disable',
       resource: 'module',
-      resourceId: moduleId,
       eventType: 'config',
       metadata: { tenantId, moduleId },
     });

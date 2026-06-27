@@ -1,0 +1,21 @@
+model BudgetPlan {
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @map("tenant_id")
+  name        String    @db.VarChar(255)
+  fiscalYear  Int       @map("fiscal_year")
+  period      String    @default("annual") @db.VarChar(20)
+  status      String    @default("draft") @db.VarChar(20)
+  totalAmount Decimal   @default(0) @map("total_amount") @db.Decimal(15, 2)
+  currency    String    @default("USD") @db.VarChar(3)
+  department  String?   @db.VarChar(100)
+  description String?   @db.Text
+  createdBy   Int       @map("created_by")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  items       BudgetPlanItem[]
+
+  @@index([tenantId])
+  @@index([tenantId, fiscalYear])
+  @@map("budget_plans")
+}

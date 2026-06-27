@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Typography, Switch, Descriptions, Tag } from 'antd';
+import { Card, Typography, Descriptions, Tag } from 'antd';
 
 const { Title } = Typography;
 

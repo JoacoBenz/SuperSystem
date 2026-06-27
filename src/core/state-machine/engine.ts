@@ -1,10 +1,13 @@
 import type { StateMachineConfig, StateNode, TransitionConfig, TransitionEffect } from './types';
+import type { SegregationRule } from '@/src/core/permissions/types';
 import { TransitionError, GuardError } from './errors';
+import { checkSegregation } from '@/src/core/permissions/segregation';
 
 export class StateMachine<TContext = Record<string, unknown>> {
   constructor(
     private config: StateMachineConfig,
     private transitions: TransitionConfig<TContext>[],
+    private options?: { segregationRules?: Record<string, SegregationRule> },
   ) {}
 
   get id(): string {
@@ -47,6 +50,7 @@ export class StateMachine<TContext = Record<string, unknown>> {
     currentState: string,
     action: string,
     context: TContext,
+    userPermissions?: Set<string>,
   ): Promise<{ newState: string; effects: TransitionEffect<TContext>[] }> {
     // Find matching transition
     const transition = this.transitions.find(t => {
@@ -62,11 +66,30 @@ export class StateMachine<TContext = Record<string, unknown>> {
       );
     }
 
+    // Enforce required permissions when caller provides the user's permission set
+    if (userPermissions && transition.requiredPermissions?.length) {
+      const missing = transition.requiredPermissions.filter(p => !userPermissions.has(p));
+      if (missing.length > 0) {
+        throw new GuardError('insufficient_permissions', `Missing required permissions: ${missing.join(', ')}`);
+      }
+    }
+
     // Run guards
     for (const guard of transition.guards ?? []) {
       const result = guard.check(context);
       if (!result.pass) {
         throw new GuardError(guard.name, result.reason ?? 'Guard check failed');
+      }
+    }
+
+    // Enforce segregation of duties if a rule is declared on this transition
+    if (transition.segregationRule && this.options?.segregationRules) {
+      const rule = this.options.segregationRules[transition.segregationRule];
+      if (rule) {
+        const result = checkSegregation(rule, (context as any).userId, context as any);
+        if (!result.allowed) {
+          throw new GuardError('segregation_of_duties', result.reason!);
+        }
       }
     }
 

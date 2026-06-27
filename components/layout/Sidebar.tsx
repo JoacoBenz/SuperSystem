@@ -19,6 +19,26 @@ import {
   FileTextOutlined,
   CheckCircleOutlined,
   AuditOutlined,
+  TeamOutlined,
+  DatabaseOutlined,
+  BarChartOutlined,
+  EditOutlined,
+  ScheduleOutlined,
+  FundOutlined,
+  IdcardOutlined,
+  CalendarOutlined,
+  DollarOutlined,
+  RiseOutlined,
+  FolderOutlined,
+  CheckSquareOutlined,
+  ClockCircleOutlined,
+  WalletOutlined,
+  ProfileOutlined,
+  UnorderedListOutlined,
+  AccountBookOutlined,
+  TransactionOutlined,
+  CalculatorOutlined,
+  BookOutlined,
 } from '@ant-design/icons';
 import type { NavigationItem } from '@/src/core/modules/types';
 
@@ -81,6 +101,7 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
     { key: '/admin/users', icon: <UserOutlined />, label: 'Users' },
     { key: '/admin/departments', icon: <ApartmentOutlined />, label: 'Departments' },
     { key: '/admin/roles', icon: <SafetyOutlined />, label: 'Roles' },
+    { key: '/admin/delegations', icon: <TeamOutlined />, label: 'Delegations' },
     { key: '/admin/modules', icon: <AppstoreOutlined />, label: 'Modules' },
     { key: '/admin/sso', icon: <SettingOutlined />, label: 'SSO Settings' },
   ];
@@ -119,6 +140,8 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
     }
 
     for (const [modulePath, items] of groupedModules) {
+      // Skip modules that are hardcoded in the sidebar
+      if (['inventory', 'finance', 'hr', 'payroll', 'sales', 'crm', 'projects', 'budget', 'treasury', 'accounting'].includes(modulePath)) continue;
       dynamicItems.push({
         key: `/${modulePath}`,
         icon: ICON_MAP[items[0]?.icon] || <AppstoreOutlined />,
@@ -132,7 +155,122 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
     }
   }
 
-  const menuItems = [...coreItems, ...dynamicItems, ...superAdminItems, ...adminItems];
+  const inventoryChildren = [
+    { key: '/inventory', icon: <BarChartOutlined />, label: 'Stock Levels' },
+    { key: '/inventory/entries', icon: <InboxOutlined />, label: 'Reception History' },
+    { key: '/inventory/adjustments', icon: <EditOutlined />, label: 'Adjustments' },
+  ];
+
+  const inventoryItem = {
+    key: 'inventory',
+    icon: <DatabaseOutlined />,
+    label: 'Inventory',
+    children: inventoryChildren,
+  };
+
+  const financeChildren = [
+    { key: '/finance', icon: <FundOutlined />, label: 'Dashboard' },
+    { key: '/finance/payment-queue', icon: <ScheduleOutlined />, label: 'Payment Queue' },
+    { key: '/finance/budgets', icon: <BankOutlined />, label: 'Budgets' },
+  ];
+
+  const financeItem = {
+    key: 'finance',
+    icon: <BankOutlined />,
+    label: 'Finance',
+    children: financeChildren,
+  };
+
+  const hrChildren = [
+    { key: '/hr', icon: <FundOutlined />, label: 'Dashboard' },
+    { key: '/hr/employees', icon: <TeamOutlined />, label: 'Employees' },
+  ];
+
+  const hrItem = {
+    key: 'hr',
+    icon: <IdcardOutlined />,
+    label: 'Human Resources',
+    children: hrChildren,
+  };
+
+  const payrollItem = {
+    key: 'payroll',
+    icon: <DollarOutlined />,
+    label: 'Payroll',
+    children: [
+      { key: '/payroll', icon: <FundOutlined />, label: 'Dashboard' },
+      { key: '/payroll/runs', icon: <CalendarOutlined />, label: 'Payroll Runs' },
+    ],
+  };
+
+  const salesItem = {
+    key: 'sales',
+    icon: <ShopOutlined />,
+    label: 'Sales',
+    children: [
+      { key: '/sales', icon: <FundOutlined />, label: 'Dashboard' },
+      { key: '/sales/orders', icon: <FileTextOutlined />, label: 'Orders' },
+      { key: '/sales/customers', icon: <TeamOutlined />, label: 'Customers' },
+    ],
+  };
+
+  const crmItem = {
+    key: 'crm',
+    icon: <RiseOutlined />,
+    label: 'CRM',
+    children: [
+      { key: '/crm', icon: <FundOutlined />, label: 'Dashboard' },
+      { key: '/crm/companies', icon: <BankOutlined />, label: 'Companies' },
+      { key: '/crm/contacts', icon: <TeamOutlined />, label: 'Contacts' },
+      { key: '/crm/opportunities', icon: <RiseOutlined />, label: 'Opportunities' },
+    ],
+  };
+
+  const projectsItem = {
+    key: 'projects',
+    icon: <FolderOutlined />,
+    label: 'Projects',
+    children: [
+      { key: '/projects', icon: <FolderOutlined />, label: 'Projects' },
+      { key: '/projects/tasks', icon: <CheckSquareOutlined />, label: 'My Tasks' },
+      { key: '/projects/time', icon: <ClockCircleOutlined />, label: 'Time Tracking' },
+    ],
+  };
+
+  const accountingItem = {
+    key: 'accounting',
+    icon: <CalculatorOutlined />,
+    label: 'Accounting',
+    children: [
+      { key: '/accounting', icon: <FundOutlined />, label: 'Dashboard' },
+      { key: '/accounting/accounts', icon: <ApartmentOutlined />, label: 'Chart of Accounts' },
+      { key: '/accounting/journals', icon: <BookOutlined />, label: 'Journal Entries' },
+    ],
+  };
+
+  const treasuryItem = {
+    key: 'treasury',
+    icon: <AccountBookOutlined />,
+    label: 'Treasury',
+    children: [
+      { key: '/treasury', icon: <FundOutlined />, label: 'Dashboard' },
+      { key: '/treasury/accounts', icon: <BankOutlined />, label: 'Bank Accounts' },
+      { key: '/treasury/transactions', icon: <TransactionOutlined />, label: 'Transactions' },
+    ],
+  };
+
+  const budgetItem = {
+    key: 'budget',
+    icon: <WalletOutlined />,
+    label: 'Budget',
+    children: [
+      { key: '/budget', icon: <FundOutlined />, label: 'Overview' },
+      { key: '/budget/list', icon: <ProfileOutlined />, label: 'Budgets' },
+      { key: '/budget/items', icon: <UnorderedListOutlined />, label: 'Line Items' },
+    ],
+  };
+
+  const menuItems = [...coreItems, inventoryItem, financeItem, accountingItem, treasuryItem, budgetItem, hrItem, payrollItem, salesItem, crmItem, projectsItem, ...dynamicItems, ...superAdminItems, ...adminItems];
 
   // Find the open submenu key based on current path
   const openKey = '/' + (pathname.split('/')[1] ?? '');

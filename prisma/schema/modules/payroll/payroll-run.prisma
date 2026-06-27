@@ -1,0 +1,43 @@
+model PayrollRun {
+  id               Int       @id @default(autoincrement())
+  tenantId         Int       @map("tenant_id")
+  period           String    @db.VarChar(7) // YYYY-MM
+  name             String    @db.VarChar(255)
+  status           String    @default("draft") @db.VarChar(20) // draft | processing | approved | paid
+  totalGross       Decimal   @default(0) @map("total_gross") @db.Decimal(15, 2)
+  totalDeductions  Decimal   @default(0) @map("total_deductions") @db.Decimal(15, 2)
+  totalNet         Decimal   @default(0) @map("total_net") @db.Decimal(15, 2)
+  currency         String    @default("USD") @db.VarChar(10)
+  notes            String?   @db.Text
+  createdBy        Int       @map("created_by")
+  approvedBy       Int?      @map("approved_by")
+  approvedAt       DateTime? @map("approved_at")
+  paidAt           DateTime? @map("paid_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  entries          PayrollEntry[]
+
+  @@map("payroll_runs")
+  @@unique([tenantId, period])
+  @@index([tenantId, status])
+}
+
+model PayrollEntry {
+  id            Int     @id @default(autoincrement())
+  payrollRunId  Int     @map("payroll_run_id")
+  userId        Int     @map("user_id")
+  baseSalary    Decimal @map("base_salary") @db.Decimal(15, 2)
+  bonuses       Decimal @default(0) @db.Decimal(15, 2)
+  deductions    Decimal @default(0) @db.Decimal(15, 2)
+  taxAmount     Decimal @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  netPay        Decimal @map("net_pay") @db.Decimal(15, 2)
+  notes         String? @db.Text
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  payrollRun    PayrollRun @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+
+  @@map("payroll_entries")
+  @@unique([payrollRunId, userId])
+  @@index([payrollRunId])
+}

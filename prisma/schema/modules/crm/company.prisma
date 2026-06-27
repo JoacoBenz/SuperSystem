@@ -1,0 +1,20 @@
+model CrmCompany {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int      @map("tenant_id")
+  name      String   @db.VarChar(255)
+  industry  String?  @db.VarChar(100)
+  website   String?  @db.VarChar(255)
+  phone     String?  @db.VarChar(50)
+  address   String?  @db.Text
+  notes     String?  @db.Text
+  active    Boolean  @default(true)
+  createdBy Int      @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  contacts      CrmContact[]
+  opportunities CrmOpportunity[]
+
+  @@index([tenantId])
+  @@map("crm_companies")
+}

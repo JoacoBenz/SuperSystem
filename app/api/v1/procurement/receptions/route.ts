@@ -2,6 +2,11 @@ import { withAuth } from '@/src/core/api/handler';
 import { created, ok } from '@/src/core/api/response';
 import { receptionSchema } from '@/src/modules/procurement/validators/reception.schema';
 import { ApiError } from '@/src/core/api/errors';
+import { StockService } from '@/src/modules/inventory';
+import { purchaseRequestWorkflow } from '@/src/modules/procurement/workflows/purchase-request.workflow';
+import { TransitionError, GuardError } from '@/src/core/state-machine/errors';
+import type { PurchaseRequestWorkflowContext } from '@/src/modules/procurement/types';
+import { NotificationService } from '@/src/core/notifications/notification.service';
 
 export const GET = withAuth(
   { moduleId: 'procurement', permissions: ['procurement.reception.read'] },
@@ -37,6 +42,17 @@ export const POST = withAuth(
       throw new ApiError('BAD_REQUEST', 'Purchase request must be in "purchased" state to record reception', 400);
     }
 
+    // Fetch ALL PR items: needed for allItemsReceived check and stock entry mapping
+    const allPrItems = await db.purchaseRequestItem.findMany({
+      where: { purchaseRequestId: body.purchaseRequestId },
+    });
+    const prItemMap = new Map((allPrItems as any[]).map((i: any) => [i.id, i]));
+
+    // Compute workflow context values
+    const receivedItemIds = new Set(body.items?.map(i => i.purchaseRequestItemId) ?? []);
+    const allItemsReceived = (allPrItems as any[]).every((i: any) => receivedItemIds.has(i.id));
+    const hasIssues = !body.conforming || (body.items?.some(i => !i.conforming) ?? false);
+
     const reception = await db.reception.create({
       data: {
         tenantId: session.tenantId,
@@ -58,8 +74,30 @@ export const POST = withAuth(
       include: { items: true },
     });
 
-    // Update purchase request status
-    const newStatus = body.conforming ? 'received' : 'received_with_issues';
+    // Transition PR status through the workflow engine (guards + segregation apply)
+    const context: PurchaseRequestWorkflowContext = {
+      userId: session.userId,
+      requesterId: (pr as any).requesterId,
+      validatedById: (pr as any).validatedById ?? null,
+      approvedById: (pr as any).approvedById ?? null,
+      departmentId: (pr as any).departmentId,
+      estimatedTotal: (pr as any).estimatedTotal ? Number((pr as any).estimatedTotal) : null,
+      hasBuyerUsers: false, // not used by the record_reception branch logic
+      receptionConforming: body.conforming,
+      allItemsReceived,
+      hasIssues,
+    };
+
+    const userPermissions = new Set(session.permissions as string[]);
+    let newStatus: string;
+    try {
+      ({ newState: newStatus } = await purchaseRequestWorkflow.transition(pr.status, 'record_reception', context, userPermissions));
+    } catch (err) {
+      if (err instanceof GuardError) throw new ApiError('FORBIDDEN', err.reason, 403);
+      if (err instanceof TransitionError) throw new ApiError('BAD_REQUEST', err.message, 400);
+      throw err;
+    }
+
     await db.purchaseRequest.update({
       where: { id: body.purchaseRequestId },
       data: { status: newStatus, version: { increment: 1 } },
@@ -68,8 +106,43 @@ export const POST = withAuth(
     await audit.log({
       action: 'create', resource: 'reception', resourceId: reception.id, moduleId: 'procurement',
       eventType: 'workflow',
-      newData: { purchaseRequestId: body.purchaseRequestId, conforming: body.conforming },
+      newData: { purchaseRequestId: body.purchaseRequestId, conforming: body.conforming, newStatus },
     });
+
+    // Notify requester about reception
+    const notifService = new NotificationService(session.tenantId);
+    notifService.notifyUser(
+      pr.requesterId,
+      'pr_received',
+      'Goods Reception Recorded',
+      `Reception recorded for your PR ${pr.number} "${pr.title}"`,
+      'purchase_request',
+      pr.id,
+    ).catch(() => {});
+
+    // Create inventory stock entries for each received item (non-fatal if inventory not yet migrated)
+    if (body.items?.length) {
+      try {
+      const stockService = new StockService(db, session.userId, audit);
+      await stockService.createEntriesFromReception(
+        reception.id,
+        body.items.map(item => {
+          const prItem = prItemMap.get(item.purchaseRequestItemId) as any;
+          return {
+            receptionId: reception.id,
+            purchaseRequestItemId: item.purchaseRequestItemId,
+            description: prItem?.description ?? 'Unknown item',
+            quantity: Number(item.quantityReceived),
+            unit: prItem?.unit ?? 'units',
+            unitCost: prItem?.estimatedPrice ? Number(prItem.estimatedPrice) : null,
+            vendorId: (pr as any).vendorId ?? null,
+            conforming: item.conforming,
+            notes: item.notes ?? null,
+          };
+        }),
+      );
+      } catch { /* inventory module not yet active */ }
+    }
 
     return created(reception);
   },

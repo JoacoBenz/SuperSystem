@@ -1,0 +1,16 @@
+model TimeEntry {
+  id          Int      @id @default(autoincrement())
+  tenantId    Int      @map("tenant_id")
+  taskId      Int      @map("task_id")
+  userId      Int      @map("user_id")
+  hours       Decimal  @db.Decimal(8, 2)
+  date        DateTime @default(now())
+  description String?  @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, taskId])
+  @@index([tenantId, userId])
+  @@map("time_entries")
+}

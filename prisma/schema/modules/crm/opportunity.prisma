@@ -1,0 +1,23 @@
+model CrmOpportunity {
+  id                Int       @id @default(autoincrement())
+  tenantId          Int       @map("tenant_id")
+  companyId         Int?      @map("company_id")
+  contactId         Int?      @map("contact_id")
+  title             String    @db.VarChar(255)
+  stage             String    @default("lead") @db.VarChar(50)
+  value             Decimal?  @db.Decimal(15, 2)
+  currency          String    @default("USD") @db.VarChar(3)
+  probability       Int       @default(10)
+  expectedCloseDate DateTime? @map("expected_close_date")
+  notes             String?   @db.Text
+  createdBy         Int       @map("created_by")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  company  CrmCompany? @relation(fields: [companyId], references: [id])
+  contact  CrmContact? @relation(fields: [contactId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, stage])
+  @@map("crm_opportunities")
+}

@@ -9,6 +9,7 @@ export interface PurchaseRequestWorkflowContext {
   receptionConforming: boolean;
   allItemsReceived: boolean;
   hasIssues: boolean;
+  budgetAvailable?: boolean;
 }
 
 export type PurchaseRequestStatus =
