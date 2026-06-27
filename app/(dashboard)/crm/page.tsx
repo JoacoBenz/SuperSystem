@@ -117,7 +117,7 @@ export default function CrmDashboardPage() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/crm/contacts')}>
             <Statistic
               title="Total Contacts"
               value={stats?.totalContacts ?? 0}
@@ -127,7 +127,7 @@ export default function CrmDashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/crm/companies')}>
             <Statistic
               title="Total Companies"
               value={stats?.totalCompanies ?? 0}
@@ -137,7 +137,7 @@ export default function CrmDashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/crm/opportunities')}>
             <Statistic
               title="Open Opportunities"
               value={stats?.totalOpportunities ?? 0}
@@ -147,7 +147,7 @@ export default function CrmDashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/crm/opportunities')}>
             <Statistic
               title="Pipeline Value"
               value={stats?.openPipelineValue ?? 0}
@@ -172,6 +172,10 @@ export default function CrmDashboardPage() {
               loading={loading}
               pagination={false}
               size="small"
+              onRow={() => ({
+                onClick: () => router.push('/crm/opportunities'),
+                style: { cursor: 'pointer' },
+              })}
             />
           </Card>
         </Col>

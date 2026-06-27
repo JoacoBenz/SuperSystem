@@ -2,6 +2,7 @@
 
 import { App, Card, Col, Row, Statistic, Table, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 
 const { Title } = Typography;
 
@@ -13,6 +14,7 @@ const statusColors: Record<string, string> = {
 
 export default function AccountingDashboardPage() {
   const { message } = App.useApp();
+  const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,12 +60,12 @@ export default function AccountingDashboardPage() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/accounting/accounts')}>
             <Statistic title="Total Accounts" value={data?.totalAccounts ?? 0} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/accounting/accounts')}>
             <Statistic
               title="Total Assets"
               value={data?.totalAssets ?? 0}
@@ -73,7 +75,7 @@ export default function AccountingDashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/accounting/accounts')}>
             <Statistic
               title="Total Liabilities"
               value={data?.totalLiabilities ?? 0}
@@ -83,7 +85,7 @@ export default function AccountingDashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/accounting/accounts')}>
             <Statistic
               title="Total Equity"
               value={data?.totalEquity ?? 0}
@@ -96,12 +98,12 @@ export default function AccountingDashboardPage() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/accounting/journals')}>
             <Statistic title="Draft Journals" value={data?.draftJournals ?? 0} />
           </Card>
         </Col>
         <Col xs={24} sm={12}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/accounting/journals')}>
             <Statistic title="Posted Journals" value={data?.postedJournals ?? 0} />
           </Card>
         </Col>
@@ -114,6 +116,10 @@ export default function AccountingDashboardPage() {
           rowKey="id"
           pagination={false}
           size="small"
+          onRow={() => ({
+            onClick: () => router.push('/accounting/journals'),
+            style: { cursor: 'pointer' },
+          })}
         />
       </Card>
     </div>

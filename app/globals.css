@@ -78,6 +78,10 @@ h1, h2, h3, h4, h5,
 }
 .ant-menu-dark .ant-menu-item-selected .anticon { color: #c7cbff !important; }
 
+/* Clickable dashboard tiles / cards → navigate on click */
+.dash-tile { cursor: pointer; border-radius: 10px; transition: background 0.15s ease; }
+.dash-tile:hover { background: rgba(79, 70, 229, 0.05); }
+
 /* Header user chip */
 .user-chip { transition: background 0.15s ease; border-radius: 8px; }
 .user-chip:hover { background: rgba(22, 24, 29, 0.05); }

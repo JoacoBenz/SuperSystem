@@ -2,6 +2,7 @@
 
 import { Card, Col, Row, Statistic, Table, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { SoonWithAI } from '@/components/ui/SoonWithAI';
 
 const { Title } = Typography;
@@ -16,6 +17,7 @@ const fmt = (n: number) =>
   new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n);
 
 export default function BudgetOverviewPage() {
+  const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -61,17 +63,17 @@ export default function BudgetOverviewPage() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/budget/list')}>
             <Statistic title="Total Budgets" value={data?.totalBudgets ?? 0} loading={loading} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/budget/list')}>
             <Statistic title="Active Budgets" value={data?.activeBudgets ?? 0} loading={loading} styles={{ content: { color: '#52c41a' } }} />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/budget/items')}>
             <Statistic
               title="Total Planned"
               value={data?.totalPlanned ?? 0}
@@ -81,7 +83,7 @@ export default function BudgetOverviewPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/budget/items')}>
             <Statistic
               title="Total Actual"
               value={data?.totalActual ?? 0}
@@ -105,6 +107,7 @@ export default function BudgetOverviewPage() {
           loading={loading}
           pagination={false}
           size="small"
+          onRow={() => ({ onClick: () => router.push('/budget/list'), style: { cursor: 'pointer' } })}
         />
       </Card>
     </div>

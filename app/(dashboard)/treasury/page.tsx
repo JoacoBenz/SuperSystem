@@ -8,11 +8,13 @@ import {
   DollarOutlined,
 } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { SoonWithAI } from '@/components/ui/SoonWithAI';
 
 const { Title } = Typography;
 
 export default function TreasuryDashboardPage() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
 
@@ -98,7 +100,7 @@ export default function TreasuryDashboardPage() {
 
       <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/treasury/accounts')}>
             <Statistic
               title="Total Accounts"
               value={stats?.totalAccounts ?? 0}
@@ -108,7 +110,7 @@ export default function TreasuryDashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/treasury/accounts')}>
             <Statistic
               title="Total Balance"
               value={stats?.totalBalance ?? 0}
@@ -122,7 +124,7 @@ export default function TreasuryDashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/treasury/transactions')}>
             <Statistic
               title="Reconciled (This Month)"
               value={stats?.reconciledCount ?? 0}
@@ -132,7 +134,7 @@ export default function TreasuryDashboardPage() {
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/treasury/transactions')}>
             <Statistic
               title="Pending Reconciliation"
               value={stats?.pendingCount ?? 0}
@@ -151,6 +153,10 @@ export default function TreasuryDashboardPage() {
           loading={loading}
           pagination={false}
           size="small"
+          onRow={() => ({
+            onClick: () => router.push('/treasury/transactions'),
+            style: { cursor: 'pointer' },
+          })}
         />
       </Card>
     </div>

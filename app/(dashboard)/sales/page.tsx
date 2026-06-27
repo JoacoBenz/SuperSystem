@@ -88,22 +88,22 @@ export default function SalesDashboardPage() {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/sales/customers')}>
             <Statistic title="Customers" value={data?.totalCustomers ?? 0} prefix={<TeamOutlined />} styles={{ content: { color: '#1677ff' } }} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/sales/orders')}>
             <Statistic title="Total Orders" value={data?.totalOrders ?? 0} prefix={<FileTextOutlined />} styles={{ content: { color: '#722ed1' } }} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/sales/orders')}>
             <Statistic title="Confirmed Revenue" value={data?.confirmedRevenue ?? 0} prefix={<DollarOutlined />} precision={2} styles={{ content: { color: '#52c41a' } }} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/sales/orders')}>
             <Statistic title="Open Orders" value={openCount} prefix={<RiseOutlined />} styles={{ content: { color: '#fa8c16' } }} />
           </Card>
         </Col>
@@ -119,7 +119,7 @@ export default function SalesDashboardPage() {
               rowKey="id"
               size="small"
               pagination={false}
-              onRow={o => ({ onClick: () => router.push(`/sales/orders`), style: { cursor: 'pointer' } })}
+              onRow={() => ({ onClick: () => router.push('/sales/orders'), style: { cursor: 'pointer' } })}
             />
           </Card>
         </Col>

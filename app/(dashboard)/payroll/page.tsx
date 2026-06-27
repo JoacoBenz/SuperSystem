@@ -81,22 +81,22 @@ export default function PayrollDashboardPage() {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/payroll/runs')}>
             <Statistic title="Active Employees" value={data?.totalEmployees ?? 0} prefix={<TeamOutlined />} styles={{ content: { color: '#1677ff' } }} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/payroll/runs')}>
             <Statistic title="Total Runs" value={data?.runCount ?? 0} prefix={<CalendarOutlined />} styles={{ content: { color: '#722ed1' } }} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/payroll/runs')}>
             <Statistic title="Paid This Year" value={data?.totalPaidThisYear ?? 0} prefix={<DollarOutlined />} precision={2} styles={{ content: { color: '#52c41a' } }} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/payroll/runs')}>
             <Statistic title="Pending Approval" value={(data?.byStatus.approved ?? 0) + (data?.byStatus.processing ?? 0)} prefix={<CheckCircleOutlined />} styles={{ content: { color: '#fa8c16' } }} />
           </Card>
         </Col>

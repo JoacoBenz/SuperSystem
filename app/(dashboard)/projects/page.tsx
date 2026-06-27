@@ -20,6 +20,7 @@ import {
 } from 'antd';
 import { PlusOutlined, FolderOutlined } from '@ant-design/icons';
 import { useCallback, useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { SoonWithAI } from '@/components/ui/SoonWithAI';
 
 const { Title } = Typography;
@@ -58,6 +59,7 @@ const CURRENCY_OPTIONS = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'AUD'];
 
 export default function ProjectsPage() {
   const { message } = App.useApp();
+  const router = useRouter();
   const [data, setData] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -265,7 +267,7 @@ export default function ProjectsPage() {
       {/* KPI Cards */}
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/projects')}>
             <Statistic
               title="Total Projects"
               value={totalProjects}
@@ -274,7 +276,7 @@ export default function ProjectsPage() {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/projects')}>
             <Statistic
               title="Active Projects"
               value={activeProjects}
@@ -284,7 +286,7 @@ export default function ProjectsPage() {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/projects/tasks')}>
             <Statistic
               title="Total Tasks (Active)"
               value={totalTasks}
@@ -328,8 +330,8 @@ export default function ProjectsPage() {
           showTotal: (t) => `${t} total`,
           showSizeChanger: true,
         }}
-        onRow={(record) => ({
-          onClick: () => handleRowClick(record),
+        onRow={() => ({
+          onClick: () => router.push('/projects/tasks'),
           style: { cursor: 'pointer' },
         })}
       />

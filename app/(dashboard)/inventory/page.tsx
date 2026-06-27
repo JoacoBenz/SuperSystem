@@ -120,22 +120,22 @@ export default function InventoryPage() {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/inventory/entries')}>
             <Statistic title="Total Items" value={totalItems} prefix={<DatabaseOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/inventory/entries')}>
             <Statistic title="In Stock" value={inStockItems} styles={{ content: { color: '#52c41a' } }} prefix={<CheckCircleOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/inventory/adjustments')}>
             <Statistic title="Low Stock (≤5)" value={lowStockItems} styles={{ content: { color: '#fa8c16' } }} prefix={<WarningOutlined />} />
           </Card>
         </Col>
         <Col span={6}>
-          <Card>
+          <Card className="dash-tile" onClick={() => router.push('/inventory/adjustments')}>
             <Statistic title="Out of Stock" value={outOfStockItems} styles={{ content: { color: '#ff4d4f' } }} prefix={<WarningOutlined />} />
           </Card>
         </Col>

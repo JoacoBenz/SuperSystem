@@ -2,6 +2,7 @@
 import { App, Card, Statistic, Row, Col, Table, Button, Divider } from 'antd';
 import { TeamOutlined, UserAddOutlined, ApartmentOutlined, UserOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 interface DashboardData {
   totalEmployees: number;
@@ -12,6 +13,7 @@ interface DashboardData {
 
 export default function HRDashboardPage() {
   const { message } = App.useApp();
+  const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +49,7 @@ export default function HRDashboardPage() {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/hr/employees')}>
             <Statistic
               title="Total Employees"
               value={data?.totalEmployees ?? 0}
@@ -57,7 +59,7 @@ export default function HRDashboardPage() {
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/hr/employees')}>
             <Statistic
               title="New This Month"
               value={data?.newThisMonth ?? 0}
@@ -67,7 +69,7 @@ export default function HRDashboardPage() {
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/hr/employees')}>
             <Statistic
               title="Active Departments"
               value={activeDepartments}
@@ -77,7 +79,7 @@ export default function HRDashboardPage() {
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/hr/employees')}>
             <Statistic
               title="Contractors"
               value={0}
@@ -97,6 +99,7 @@ export default function HRDashboardPage() {
               rowKey="id"
               pagination={false}
               size="small"
+              onRow={() => ({ onClick: () => router.push('/hr/employees'), style: { cursor: 'pointer' } })}
             />
           </Card>
         </Col>
@@ -104,7 +107,10 @@ export default function HRDashboardPage() {
           <Card title="Recent Hires" loading={loading}>
             {(data?.recentHires?.slice(0, 5) ?? []).map((item, idx, arr) => (
               <div key={item.id}>
-                <div style={{ padding: '8px 0' }}>
+                <div
+                  style={{ padding: '8px 0', cursor: 'pointer' }}
+                  onClick={() => router.push('/hr/employees')}
+                >
                   <strong>{item.name}</strong>
                   <span style={{ color: '#666', marginLeft: 8 }}>{item.department?.name ?? 'No Department'}</span>
                 </div>

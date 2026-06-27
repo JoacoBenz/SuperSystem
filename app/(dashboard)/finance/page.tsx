@@ -44,7 +44,7 @@ export default function FinancePage() {
 
       <Row gutter={16} style={{ marginBottom: 24 }}>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/finance/payment-queue')}>
             <Statistic
               title="Total Spent (All Time)"
               value={data?.totalSpent ?? 0}
@@ -55,7 +55,7 @@ export default function FinancePage() {
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/finance/payment-queue')}>
             <Statistic
               title="This Month Spent"
               value={data?.thisMonthSpent ?? 0}
@@ -67,7 +67,7 @@ export default function FinancePage() {
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/finance/payment-queue')}>
             <Statistic
               title="Pending Payments"
               value={data?.pendingPayments ?? 0}
@@ -77,7 +77,7 @@ export default function FinancePage() {
           </Card>
         </Col>
         <Col span={6}>
-          <Card loading={loading}>
+          <Card loading={loading} className="dash-tile" onClick={() => router.push('/finance/payment-queue')}>
             <Statistic
               title="Scheduled Payments"
               value={data?.scheduledPayments ?? 0}
