@@ -1,6 +1,6 @@
 'use client';
 
-import { Card, Form, Input, Button, Typography, Divider, App, Space } from 'antd';
+import { Form, Input, Button, Typography, Divider, App, Space } from 'antd';
 import { UserOutlined, LockOutlined, GoogleOutlined, WindowsOutlined } from '@ant-design/icons';
 import { signIn } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -36,10 +36,10 @@ export default function LoginPage() {
   }
 
   return (
-    <Card style={{ width: 400, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}>
-      <div style={{ textAlign: 'center', marginBottom: 24 }}>
-        <Title level={3} style={{ margin: 0 }}>ERP Platform</Title>
-        <Text type="secondary">Sign in to your account</Text>
+    <div>
+      <div style={{ marginBottom: 28 }}>
+        <Title level={2} style={{ margin: 0, fontSize: 28 }}>Welcome back</Title>
+        <Text type="secondary">Sign in to your ERP Platform account</Text>
       </div>
 
       <Form onFinish={handleSubmit} layout="vertical" size="large">
@@ -73,6 +73,6 @@ export default function LoginPage() {
         <Text> or </Text>
         <Link href="/join">Join with code</Link>
       </div>
-    </Card>
+    </div>
   );
 }

@@ -280,10 +280,58 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
       trigger={null}
       collapsible
       collapsed={collapsed}
-      style={{ minHeight: '100vh' }}
+      width={236}
+      style={{
+        background: '#16181d',
+        borderRight: '1px solid rgba(255,255,255,0.06)',
+        position: 'fixed',
+        insetInlineStart: 0,
+        top: 0,
+        bottom: 0,
+        height: '100vh',
+        overflowY: 'auto',
+        zIndex: 20,
+      }}
     >
-      <div style={{ height: 32, margin: 16, color: '#fff', textAlign: 'center', fontWeight: 'bold', fontSize: collapsed ? 14 : 18 }}>
-        {collapsed ? 'ERP' : 'ERP Platform'}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 11,
+          height: 60,
+          padding: collapsed ? 0 : '0 20px',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          borderBottom: '1px solid rgba(255,255,255,0.07)',
+          marginBottom: 6,
+          position: 'sticky',
+          top: 0,
+          background: '#16181d',
+          zIndex: 1,
+        }}
+      >
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            flexShrink: 0,
+            borderRadius: 9,
+            background: '#4f46e5',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontWeight: 700,
+            fontSize: 14,
+            letterSpacing: 0.5,
+          }}
+        >
+          EP
+        </div>
+        {!collapsed && (
+          <span className="brand-word" style={{ color: '#fff', fontWeight: 600, fontSize: 17, letterSpacing: 0.2, whiteSpace: 'nowrap' }}>
+            ERP Platform
+          </span>
+        )}
       </div>
       {loading ? (
         <div style={{ textAlign: 'center', padding: 20 }}><Spin size="small" /></div>
@@ -295,6 +343,7 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
           defaultOpenKeys={[openKey]}
           items={menuItems}
           onClick={({ key }) => router.push(key)}
+          style={{ background: 'transparent', borderInlineEnd: 'none', paddingBottom: 16 }}
         />
       )}
     </Sider>
