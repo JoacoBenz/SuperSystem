@@ -50,9 +50,8 @@ h1, h2, h3, h4, h5,
 
 /* Editorial metric labels */
 .ant-statistic-title {
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  font-size: 11px;
+  letter-spacing: 0;
+  font-size: 13px;
   font-weight: 600;
   color: var(--muted);
   margin-bottom: 6px;
@@ -62,9 +61,8 @@ h1, h2, h3, h4, h5,
 /* ── Tables: borderless, hairline rows, airy header ───────────────────────── */
 .ant-table { background: transparent !important; }
 .ant-table-thead > tr > th {
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  font-size: 11px;
+  letter-spacing: 0;
+  font-size: 13px;
   font-weight: 600;
 }
 .ant-table-tbody > tr > td { border-bottom: 1px solid var(--hairline); }
