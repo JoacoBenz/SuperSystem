@@ -3,6 +3,7 @@ import { created, ok } from '@/src/core/api/response';
 import { receptionSchema } from '@/src/modules/procurement/validators/reception.schema';
 import { ApiError } from '@/src/core/api/errors';
 import { StockService } from '@/src/modules/inventory';
+import { recordTreasuryMovement, recordJournalEntry } from '@/src/core/integration/postings';
 import { purchaseRequestWorkflow } from '@/src/modules/procurement/workflows/purchase-request.workflow';
 import { TransitionError, GuardError } from '@/src/core/state-machine/errors';
 import type { PurchaseRequestWorkflowContext } from '@/src/modules/procurement/types';
@@ -142,6 +143,25 @@ export const POST = withAuth(
         }),
       );
       } catch { /* inventory module not yet active */ }
+    }
+
+    // Completed purchase → cash out (Treasury) + expense posting (Accounting)
+    const purchaseValue = (body.items ?? []).reduce((sum, item) => {
+      const prItem = prItemMap.get(item.purchaseRequestItemId) as any;
+      const unitCost = prItem?.estimatedPrice ? Number(prItem.estimatedPrice) : 0;
+      return sum + Number(item.quantityReceived) * unitCost;
+    }, 0);
+    if (purchaseValue > 0) {
+      try {
+        const cash = await recordTreasuryMovement(session.tenantId, session.userId, { type: 'debit', amount: purchaseValue, description: `Payment for goods — ${pr.number}`, reference: pr.number });
+        const posted = await recordJournalEntry(session.tenantId, session.userId, `Purchase ${pr.number}`, [
+          { code: '5000', debit: purchaseValue, memo: `Expense ${pr.number}` },
+          { code: '1000', credit: purchaseValue, memo: `Cash out ${pr.number}` },
+        ]);
+        if (cash || posted) {
+          await audit.log({ action: 'create', resource: 'posting', moduleId: 'procurement', eventType: 'workflow', newData: { via: 'reception', pr: pr.number, amount: purchaseValue, treasury: cash, accounting: posted } });
+        }
+      } catch { /* treasury/accounting not set up — non-fatal */ }
     }
 
     return created(reception);
