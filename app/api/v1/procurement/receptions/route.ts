@@ -3,7 +3,7 @@ import { created, ok } from '@/src/core/api/response';
 import { receptionSchema } from '@/src/modules/procurement/validators/reception.schema';
 import { ApiError } from '@/src/core/api/errors';
 import { StockService } from '@/src/modules/inventory';
-import { recordTreasuryMovement, recordJournalEntry } from '@/src/core/integration/postings';
+import { recordTreasuryMovement, recordJournalEntry, addBudgetActual } from '@/src/core/integration/postings';
 import { purchaseRequestWorkflow } from '@/src/modules/procurement/workflows/purchase-request.workflow';
 import { TransitionError, GuardError } from '@/src/core/state-machine/errors';
 import type { PurchaseRequestWorkflowContext } from '@/src/modules/procurement/types';
@@ -158,6 +158,8 @@ export const POST = withAuth(
           { code: '5000', debit: purchaseValue, memo: `Expense ${pr.number}` },
           { code: '1000', credit: purchaseValue, memo: `Cash out ${pr.number}` },
         ]);
+        // Roll the spend into live budget actuals
+        await addBudgetActual(session.tenantId, purchaseValue, 'Procurement Spend');
         if (cash || posted) {
           await audit.log({ action: 'create', resource: 'posting', moduleId: 'procurement', eventType: 'workflow', newData: { via: 'reception', pr: pr.number, amount: purchaseValue, treasury: cash, accounting: posted } });
         }

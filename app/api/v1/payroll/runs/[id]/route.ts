@@ -2,6 +2,8 @@ import { withAuth } from '@/src/core/api/handler';
 import { ok } from '@/src/core/api/response';
 import { ApiError } from '@/src/core/api/errors';
 import { prisma } from '@/src/core/db/client';
+import { recordTreasuryMovement, recordJournalEntry } from '@/src/core/integration/postings';
+import { NotificationService } from '@/src/core/notifications/notification.service';
 import { z } from 'zod';
 
 const updateRunSchema = z.object({
@@ -55,6 +57,8 @@ export const PATCH = withAuth(
     const run = await (prisma as any).payrollRun.findFirst({ where: { id, tenantId } });
     if (!run) throw new ApiError('NOT_FOUND', 'Payroll run not found', 404);
 
+    const wasPaid = run.status === 'paid';
+
     const updateData: Record<string, unknown> = {};
     if (ctx.body.notes !== undefined) updateData.notes = ctx.body.notes;
     if (ctx.body.status) {
@@ -72,6 +76,70 @@ export const PATCH = withAuth(
       where: { id },
       data: updateData,
     });
+
+    // When a run transitions into `paid`, ripple into Treasury, Accounting and notifications.
+    if (!wasPaid && updated.status === 'paid') {
+      const userId = ctx.session.userId;
+      const net = Number(updated.totalNet);
+      const ref = updated.period ? `PR-RUN-${updated.period}` : `PR-RUN-${id}`;
+
+      // 1. Treasury: cash out of the primary bank account.
+      try {
+        await recordTreasuryMovement(tenantId, userId, {
+          type: 'debit',
+          amount: net,
+          description: 'Payroll run paid',
+          reference: ref,
+        });
+      } catch {
+        // best-effort: never fail the transition because Treasury isn't set up
+      }
+
+      // 2. Accounting: Dr Operating Expenses / Cr Cash.
+      try {
+        await recordJournalEntry(tenantId, userId, `Payroll ${ref}`, [
+          { code: '5000', debit: net, memo: 'Salaries expense' },
+          { code: '1000', credit: net, memo: 'Cash out' },
+        ]);
+      } catch {
+        // best-effort: never fail the transition because Accounting isn't set up
+      }
+
+      // 3. Notify each paid employee.
+      try {
+        const entries = await (prisma as any).payrollEntry.findMany({
+          where: { payrollRunId: id },
+          select: { userId: true },
+        });
+        const notifications = new NotificationService(tenantId);
+        for (const entry of entries) {
+          await notifications.notifyUser(
+            entry.userId,
+            'payroll_paid',
+            'Salary paid',
+            'Your salary for this run has been paid',
+            'payroll_run',
+            id,
+            'payroll',
+          );
+        }
+      } catch {
+        // best-effort: notifications must not fail the transition
+      }
+
+      // 4. Audit the posting.
+      try {
+        await ctx.audit.log({
+          action: 'create',
+          resource: 'posting',
+          moduleId: 'payroll',
+          eventType: 'workflow',
+          newData: { via: 'payroll_paid', amount: net, runId: id },
+        });
+      } catch {
+        // best-effort
+      }
+    }
 
     return ok({ ...updated, totalGross: Number(updated.totalGross), totalDeductions: Number(updated.totalDeductions), totalNet: Number(updated.totalNet) });
   },

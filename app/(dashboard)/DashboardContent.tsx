@@ -1,35 +1,50 @@
 'use client';
 
-import { Typography, Row, Col, Card, Table, Tag, Spin } from 'antd';
+import { Typography, Row, Col, Card, Table, Tag, Spin, Statistic } from 'antd';
 import { StatCard } from '@/components/ui/StatCard';
 import { SoonWithAI } from '@/components/ui/SoonWithAI';
 import { useEffect, useState } from 'react';
 import {
   FileTextOutlined,
-  CheckCircleOutlined,
   ShoppingCartOutlined,
   TeamOutlined,
   ClusterOutlined,
   AppstoreOutlined,
   DollarOutlined,
+  WarningOutlined,
+  FundOutlined,
+  ProjectOutlined,
+  CheckSquareOutlined,
+  BankOutlined,
+  RiseOutlined,
+  FallOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 interface DashboardContentProps {
   orgRole: string;
   permissions: string[];
 }
 
+interface Overview {
+  procurement: { openPurchaseRequests: number };
+  inventory: { lowStockItems: number };
+  sales: { orders: number; confirmedRevenue: number };
+  crm: { openPipelineValue: number };
+  projects: { activeProjects: number; openTasks: number };
+  treasury: { totalBalance: number };
+  accounting: { totalAssets: number; totalLiabilities: number };
+  budget: { totalPlanned: number; totalActual: number };
+  hr: { employeeCount: number };
+}
+
+const money = (v: number) => `$${Math.round(v).toLocaleString('en-US')}`;
+
 export function DashboardContent({ orgRole, permissions }: DashboardContentProps) {
-  const [stats, setStats] = useState({
-    myRequests: 0,
-    pendingApprovals: 0,
-    pendingValidations: 0,
-    inProcurement: 0,
-    pendingClosure: 0,
-  });
   const [platformStats, setPlatformStats] = useState<{ tenants: any[] } | null>(null);
+  const [overview, setOverview] = useState<Overview | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,38 +59,14 @@ export function DashboardContent({ orgRole, permissions }: DashboardContentProps
         .catch(() => {})
         .finally(() => setLoading(false));
     } else {
-      // Regular users: load procurement stats
-      async function fetchStats() {
-        try {
-          const fetchCount = async (status: string) => {
-            const res = await fetch(`/api/v1/procurement/purchase-requests?status=${status}&count_only=true`);
-            const data = await res.json();
-            return data.count ?? 0;
-          };
-
-          const [submitted, validated, inProc, received] = await Promise.all([
-            fetchCount('submitted'),
-            fetchCount('validated'),
-            fetchCount('in_procurement'),
-            fetchCount('received'),
-          ]);
-
-          setStats({
-            myRequests: submitted + validated + inProc,
-            pendingApprovals: validated,
-            pendingValidations: submitted,
-            inProcurement: inProc,
-            pendingClosure: received,
-          });
-        } catch {} finally {
-          setLoading(false);
-        }
-      }
-      fetchStats();
+      // Regular users: load cross-module business overview
+      fetch('/api/v1/core/overview')
+        .then(r => r.json())
+        .then((data: Overview) => setOverview(data))
+        .catch(() => {})
+        .finally(() => setLoading(false));
     }
   }, [orgRole]);
-
-  const hasPermission = (p: string) => permissions.includes(p);
 
   // Super admin: platform overview dashboard
   if (orgRole === 'super_admin') {
@@ -150,72 +141,156 @@ export function DashboardContent({ orgRole, permissions }: DashboardContentProps
     );
   }
 
-  // Regular users: module-specific dashboard
+  // Regular users: unified cross-module business overview
+  const o = overview;
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '0.5em' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '0.25em' }}>
         <Title level={3} style={{ margin: 0 }}>Dashboard</Title>
         <SoonWithAI
           feature="AI Copilot"
           description={'Ask in plain language — "top 5 customers by revenue this quarter" — and get instant answers, charts, and actions across every module.'}
         />
       </div>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 20 }}>
+        Key numbers from across your business, in one place.
+      </Text>
+
       <Row gutter={[16, 16]}>
-        {hasPermission('procurement.purchase_request.read_own') && (
-          <Col xs={24} sm={12} lg={6}>
-            <StatCard
-              title="Active Requests"
-              value={stats.myRequests}
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Open Purchase Requests"
+              value={o?.procurement.openPurchaseRequests ?? 0}
               prefix={<FileTextOutlined />}
-              loading={loading}
-              color="#1677ff"
+              styles={{ content: { color: '#1677ff' } }}
             />
-          </Col>
-        )}
-        {hasPermission('procurement.purchase_request.validate') && (
-          <Col xs={24} sm={12} lg={6}>
-            <StatCard
-              title="Pending Validations"
-              value={stats.pendingValidations}
-              prefix={<CheckCircleOutlined />}
-              loading={loading}
-              color="#faad14"
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Low-Stock Items"
+              value={o?.inventory.lowStockItems ?? 0}
+              prefix={<WarningOutlined />}
+              styles={{ content: { color: '#faad14' } }}
             />
-          </Col>
-        )}
-        {hasPermission('procurement.purchase_request.approve') && (
-          <Col xs={24} sm={12} lg={6}>
-            <StatCard
-              title="Pending Approvals"
-              value={stats.pendingApprovals}
-              prefix={<CheckCircleOutlined />}
-              loading={loading}
-              color="#52c41a"
-            />
-          </Col>
-        )}
-        {hasPermission('procurement.purchase_request.process') && (
-          <Col xs={24} sm={12} lg={6}>
-            <StatCard
-              title="In Procurement"
-              value={stats.inProcurement}
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Sales Orders"
+              value={o?.sales.orders ?? 0}
               prefix={<ShoppingCartOutlined />}
-              loading={loading}
-              color="#722ed1"
+              styles={{ content: { color: '#722ed1' } }}
             />
-          </Col>
-        )}
-        {hasPermission('procurement.purchase_request.close') && (
-          <Col xs={24} sm={12} lg={6}>
-            <StatCard
-              title="Pending Closure"
-              value={stats.pendingClosure}
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Confirmed Revenue"
+              value={money(o?.sales.confirmedRevenue ?? 0)}
               prefix={<DollarOutlined />}
-              loading={loading}
-              color="#13c2c2"
+              styles={{ content: { color: '#52c41a' } }}
             />
-          </Col>
-        )}
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Open Pipeline Value"
+              value={money(o?.crm.openPipelineValue ?? 0)}
+              prefix={<FundOutlined />}
+              styles={{ content: { color: '#13c2c2' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Active Projects"
+              value={o?.projects.activeProjects ?? 0}
+              prefix={<ProjectOutlined />}
+              styles={{ content: { color: '#2f54eb' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Open Tasks"
+              value={o?.projects.openTasks ?? 0}
+              prefix={<CheckSquareOutlined />}
+              styles={{ content: { color: '#eb2f96' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Treasury Balance"
+              value={money(o?.treasury.totalBalance ?? 0)}
+              prefix={<WalletOutlined />}
+              styles={{ content: { color: '#52c41a' } }}
+            />
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Total Assets"
+              value={money(o?.accounting.totalAssets ?? 0)}
+              prefix={<RiseOutlined />}
+              styles={{ content: { color: '#52c41a' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Total Liabilities"
+              value={money(o?.accounting.totalLiabilities ?? 0)}
+              prefix={<FallOutlined />}
+              styles={{ content: { color: '#cf1322' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Budget Planned"
+              value={money(o?.budget.totalPlanned ?? 0)}
+              prefix={<BankOutlined />}
+              styles={{ content: { color: '#1677ff' } }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Budget Actual"
+              value={money(o?.budget.totalActual ?? 0)}
+              prefix={<BankOutlined />}
+              styles={{ content: { color: '#fa8c16' } }}
+            />
+          </Card>
+        </Col>
+
+        <Col xs={24} sm={12} lg={6}>
+          <Card loading={loading}>
+            <Statistic
+              title="Employees"
+              value={o?.hr.employeeCount ?? 0}
+              prefix={<TeamOutlined />}
+              styles={{ content: { color: '#722ed1' } }}
+            />
+          </Card>
+        </Col>
       </Row>
 
       {orgRole === 'admin' && (

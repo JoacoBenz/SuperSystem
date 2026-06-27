@@ -2,7 +2,7 @@ import { withAuth } from '@/src/core/api/handler';
 import { ok } from '@/src/core/api/response';
 import { ApiError } from '@/src/core/api/errors';
 import { prisma } from '@/src/core/db/client';
-import { decrementStockForSale, recordTreasuryMovement, recordJournalEntry } from '@/src/core/integration/postings';
+import { decrementStockForSale, recordTreasuryMovement, recordJournalEntry, recordCOGS, notifyLowStock } from '@/src/core/integration/postings';
 import { z } from 'zod';
 
 const updateSchema = z.object({
@@ -76,6 +76,8 @@ export const PATCH = withAuth(
         if (lines > 0) {
           await ctx.audit.log({ action: 'update', resource: 'stock_adjustment', moduleId: 'inventory', eventType: 'workflow', newData: { via: 'sales_shipment', order: ref, lines } });
         }
+        // Alert if any item dropped to a low level
+        await notifyLowStock(tenantId, (order.items ?? []).map((i: any) => i.description));
       } catch { /* inventory not set up — non-fatal */ }
     }
 
@@ -88,6 +90,8 @@ export const PATCH = withAuth(
           { code: '1000', debit: amount, memo: `Cash from ${ref}` },
           { code: '4000', credit: amount, memo: `Revenue ${ref}` },
         ]);
+        // Cost of goods sold → Dr COGS / Cr Inventory (keeps margin + inventory value real)
+        await recordCOGS(tenantId, userId, (order.items ?? []).map((i: any) => ({ description: i.description, quantity: Number(i.quantity) })), ref);
         if (cash || posted) {
           await ctx.audit.log({ action: 'create', resource: 'posting', moduleId: 'sales', eventType: 'workflow', newData: { via: 'sales_delivered', order: ref, amount, treasury: cash, accounting: posted } });
         }

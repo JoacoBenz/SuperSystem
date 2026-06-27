@@ -3,6 +3,7 @@ import { ok } from '@/src/core/api/response';
 import { prisma } from '@/src/core/db/client';
 import { z } from 'zod';
 import { apiError } from '@/src/core/api/errors';
+import { convertOpportunity } from './convert/route';
 
 const VALID_TRANSITIONS: Record<string, string[]> = {
   lead: ['qualified', 'lost'],
@@ -74,6 +75,30 @@ export const PATCH = withAuth(
         contact: { select: { id: true, firstName: true, lastName: true } },
       },
     });
+
+    // Auto-hook: when an opportunity transitions to "won", spin up a Sales
+    // customer + draft order. Best-effort and non-fatal — the stage transition
+    // is already committed and must not be rolled back on conversion failure.
+    if (newStage === 'won' && opportunity.stage !== 'won') {
+      try {
+        const result = await convertOpportunity(updated, ctx.session.userId);
+        await ctx.audit.log({
+          action: 'create',
+          resource: 'posting',
+          moduleId: 'crm',
+          eventType: 'workflow',
+          newData: {
+            via: 'opportunity_won',
+            opportunityId: id,
+            customerId: result.customerId,
+            orderId: result.orderId,
+            orderNumber: result.orderNumber,
+          },
+        });
+      } catch {
+        // non-fatal: conversion failure must not break the stage transition
+      }
+    }
 
     return ok({
       ...updated,
