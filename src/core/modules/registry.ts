@@ -7,8 +7,11 @@ class ModuleRegistry {
   private modules = new Map<string, ModuleDefinition>();
 
   register(module: ModuleDefinition): void {
+    // Tolerate re-registration (e.g. dev HMR re-evaluating a module's files):
+    // refresh the definition in place instead of throwing.
     if (this.modules.has(module.id)) {
-      throw new Error(`Module "${module.id}" is already registered`);
+      this.modules.set(module.id, module);
+      return;
     }
     for (const dep of module.dependencies) {
       if (!this.modules.has(dep)) {

@@ -245,6 +245,7 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
       { key: '/accounting', icon: <FundOutlined />, label: 'Dashboard' },
       { key: '/accounting/accounts', icon: <ApartmentOutlined />, label: 'Chart of Accounts' },
       { key: '/accounting/journals', icon: <BookOutlined />, label: 'Journal Entries' },
+      { key: '/accounting/statements', icon: <FileTextOutlined />, label: 'Statements' },
     ],
   };
 

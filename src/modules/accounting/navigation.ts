@@ -19,4 +19,10 @@ export const accountingNavigation: NavigationItem[] = [
     icon: 'BookOutlined',
     requiredPermissions: ['accounting.journal.read'],
   },
+  {
+    key: '/accounting/statements',
+    label: 'Statements',
+    icon: 'FileTextOutlined',
+    requiredPermissions: ['accounting.report.read'],
+  },
 ];
