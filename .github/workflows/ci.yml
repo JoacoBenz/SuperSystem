@@ -1,0 +1,28 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    env:
+      # Dummy values — nothing connects to a DB during typecheck/test/build.
+      # Tests mock Prisma; the pg Pool is lazy so a parseable URL is enough for `next build`.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/erp_ci
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/erp_ci
+      NEXTAUTH_SECRET: ci-placeholder-secret-please-override-0000
+      NEXTAUTH_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
