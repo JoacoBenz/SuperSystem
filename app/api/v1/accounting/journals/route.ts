@@ -1,5 +1,6 @@
 import { withAuth } from '@/src/core/api/handler';
 import { paginated, created } from '@/src/core/api/response';
+import { apiError } from '@/src/core/api/errors';
 import { prisma } from '@/src/core/db/client';
 import { z } from 'zod';
 
@@ -59,6 +60,13 @@ export const POST = withAuth(
   async (_request, ctx) => {
     const { description, date, lines } = ctx.body;
     const tenantId = ctx.session.tenantId;
+
+    // Enforce double-entry: when lines are supplied, debits must equal credits.
+    const totalDebit = lines.reduce((s: number, l: any) => s + (l.debit || 0), 0);
+    const totalCredit = lines.reduce((s: number, l: any) => s + (l.credit || 0), 0);
+    if (lines.length > 0 && Math.abs(totalDebit - totalCredit) > 0.001) {
+      return apiError('VALIDATION_ERROR', `Journal entry must balance: debits (${totalDebit}) ≠ credits (${totalCredit})`, 422);
+    }
 
     const count = await (prisma as any).journalEntry.count({ where: { tenantId } });
     const entryNumber = 'JE-' + String(count + 1).padStart(5, '0');

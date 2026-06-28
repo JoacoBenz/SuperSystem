@@ -1,6 +1,11 @@
 import { withAuth } from '@/src/core/api/handler';
 import { ok } from '@/src/core/api/response';
-import { notFound } from '@/src/core/api/errors';
+import { notFound, apiError } from '@/src/core/api/errors';
+
+const requireAdmin = (ctx: any) =>
+  ctx.session.orgRole !== 'admin' && ctx.session.orgRole !== 'super_admin'
+    ? apiError('FORBIDDEN', 'Only admins can manage users', 403)
+    : null;
 import { z } from 'zod';
 
 const updateUserSchema = z.object({
@@ -12,8 +17,9 @@ const updateUserSchema = z.object({
 });
 
 export const GET = withAuth(
-  { permissions: ['core.user.read'] },
+  {},
   async (request, ctx) => {
+    const denied = requireAdmin(ctx); if (denied) return denied;
     const id = parseInt(ctx.params.id);
     const user = await ctx.db.user.findUnique({
       where: { id },
@@ -30,8 +36,9 @@ export const GET = withAuth(
 );
 
 export const PATCH = withAuth(
-  { permissions: ['core.user.manage'], body: updateUserSchema },
+  { body: updateUserSchema },
   async (request, ctx) => {
+    const denied = requireAdmin(ctx); if (denied) return denied;
     const id = parseInt(ctx.params.id);
     const { body, db, audit } = ctx;
 
@@ -69,8 +76,9 @@ export const PATCH = withAuth(
 );
 
 export const DELETE = withAuth(
-  { permissions: ['core.user.manage'] },
+  {},
   async (request, ctx) => {
+    const denied = requireAdmin(ctx); if (denied) return denied;
     const id = parseInt(ctx.params.id);
     const existing = await ctx.db.user.findUnique({ where: { id } });
     if (!existing || existing.deletedAt) return notFound('User');

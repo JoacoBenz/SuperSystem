@@ -26,7 +26,7 @@ export const GET = withAuth(
 );
 
 export const POST = withAuth(
-  { moduleId: 'procurement', permissionsAny: ['procurement.purchase_request.read_own', 'procurement.purchase_request.read_all', 'procurement.purchase_request.read_department'], body: createQuotationSchema },
+  { moduleId: 'procurement', permissionsAny: ['procurement.quotation.manage', 'procurement.purchase_request.create', 'procurement.purchase_request.update_own'], body: createQuotationSchema },
   async (request, ctx) => {
     const prId = parseInt(ctx.params.id);
     const pr = await ctx.db.purchaseRequest.findUnique({ where: { id: prId } });

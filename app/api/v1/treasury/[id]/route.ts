@@ -14,6 +14,7 @@ export const GET = withAuth(
   { moduleId: 'treasury', permissions: ['treasury.bank_account.read'] },
   async (_request, ctx) => {
     const id = parseInt(ctx.params.id);
+    if (Number.isNaN(id)) return apiError('NOT_FOUND', 'Bank account not found', 404);
     const tenantId = ctx.session.tenantId;
 
     const account = await (prisma as any).bankAccount.findFirst({
@@ -45,6 +46,7 @@ export const PATCH = withAuth(
   { moduleId: 'treasury', permissions: ['treasury.bank_account.manage'], body: updateAccountSchema },
   async (_request, ctx) => {
     const id = parseInt(ctx.params.id);
+    if (Number.isNaN(id)) return apiError('NOT_FOUND', 'Bank account not found', 404);
     const tenantId = ctx.session.tenantId;
 
     const account = await (prisma as any).bankAccount.findFirst({

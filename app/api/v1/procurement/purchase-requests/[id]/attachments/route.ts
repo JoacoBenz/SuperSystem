@@ -16,7 +16,8 @@ export const GET = withAuth(
 );
 
 export const POST = withAuth(
-  { moduleId: 'procurement', permissionsAny: ['procurement.purchase_request.read_own', 'procurement.purchase_request.read_all', 'procurement.purchase_request.read_department'] },
+  // Writing PR documents requires a procurement write capability, not mere read.
+  { moduleId: 'procurement', permissionsAny: ['procurement.quotation.manage', 'procurement.purchase_request.create', 'procurement.purchase_request.update_own'] },
   async (request, ctx) => {
     const prId = parseInt(ctx.params.id);
 

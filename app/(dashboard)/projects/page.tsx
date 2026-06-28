@@ -281,7 +281,7 @@ export default function ProjectsPage() {
               title="Active Projects"
               value={activeProjects}
               loading={kpiLoading}
-              valueStyle={{ color: '#1890ff' }}
+              styles={{ content: { color: '#1890ff' } }}
             />
           </Card>
         </Col>

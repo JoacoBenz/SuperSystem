@@ -1,5 +1,6 @@
 import { withAuth } from '@/src/core/api/handler';
 import { paginated, created } from '@/src/core/api/response';
+import { apiError } from '@/src/core/api/errors';
 import { z } from 'zod';
 import { hash } from 'bcryptjs';
 
@@ -50,6 +51,9 @@ export const GET = withAuth(
 export const POST = withAuth(
   { body: createUserSchema },
   async (request, ctx) => {
+    if (ctx.session.orgRole !== 'admin' && ctx.session.orgRole !== 'super_admin') {
+      return apiError('FORBIDDEN', 'Only admins can create users', 403);
+    }
     const { body, db, audit } = ctx;
     const passwordHash = body.password ? await hash(body.password, 12) : null;
 

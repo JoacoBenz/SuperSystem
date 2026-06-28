@@ -11,7 +11,7 @@ const updateQuotationSchema = z.object({
 });
 
 export const PATCH = withAuth(
-  { moduleId: 'procurement', permissionsAny: ['procurement.purchase_request.read_own', 'procurement.purchase_request.read_all', 'procurement.purchase_request.read_department'], body: updateQuotationSchema },
+  { moduleId: 'procurement', permissionsAny: ['procurement.quotation.manage', 'procurement.purchase_request.create', 'procurement.purchase_request.update_own'], body: updateQuotationSchema },
   async (request, ctx) => {
     const prId = parseInt(ctx.params.id);
     const qid = parseInt(ctx.params.qid);
@@ -43,7 +43,7 @@ export const PATCH = withAuth(
 );
 
 export const DELETE = withAuth(
-  { moduleId: 'procurement', permissionsAny: ['procurement.purchase_request.read_own', 'procurement.purchase_request.read_all', 'procurement.purchase_request.read_department'] },
+  { moduleId: 'procurement', permissionsAny: ['procurement.quotation.manage', 'procurement.purchase_request.create', 'procurement.purchase_request.update_own'] },
   async (request, ctx) => {
     const prId = parseInt(ctx.params.id);
     const qid = parseInt(ctx.params.qid);

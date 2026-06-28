@@ -4,7 +4,7 @@ import { ApiError } from '@/src/core/api/errors';
 import { LocalStorageService } from '@/src/core/storage/local-storage.service';
 
 export const DELETE = withAuth(
-  { moduleId: 'procurement', permissionsAny: ['procurement.purchase_request.read_own', 'procurement.purchase_request.read_all'] },
+  { moduleId: 'procurement', permissionsAny: ['procurement.quotation.manage', 'procurement.purchase_request.create', 'procurement.purchase_request.update_own'] },
   async (request, ctx) => {
     const attachmentId = parseInt(ctx.params.attachmentId);
     const attachment = await ctx.db.fileAttachment.findUnique({ where: { id: attachmentId } });
