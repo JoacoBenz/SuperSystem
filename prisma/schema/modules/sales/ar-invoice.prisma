@@ -1,0 +1,46 @@
+model ARInvoice {
+  id            Int       @id @default(autoincrement())
+  tenantId      Int       @map("tenant_id")
+  customerId    Int       @map("customer_id")
+  salesOrderId  Int?      @map("sales_order_id")
+  invoiceNumber String    @map("invoice_number") @db.VarChar(50)
+  status        String    @default("draft") @db.VarChar(20) // draft | issued | paid | void
+  issueDate     DateTime  @default(now()) @map("issue_date")
+  dueDate       DateTime  @map("due_date")
+  subtotal      Decimal   @default(0) @db.Decimal(15, 2)
+  taxAmount     Decimal   @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  total         Decimal   @default(0) @db.Decimal(15, 2)
+  paidAmount    Decimal   @default(0) @map("paid_amount") @db.Decimal(15, 2)
+  currency      String    @default("USD") @db.VarChar(10)
+  notes         String?   @db.Text
+  createdBy     Int       @map("created_by")
+  issuedAt      DateTime? @map("issued_at")
+  paidAt        DateTime? @map("paid_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  customer      Customer        @relation(fields: [customerId], references: [id])
+  items         ARInvoiceLine[]
+
+  @@map("ar_invoices")
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, customerId])
+  @@index([tenantId, dueDate])
+}
+
+model ARInvoiceLine {
+  id          Int      @id @default(autoincrement())
+  arInvoiceId Int      @map("ar_invoice_id")
+  tenantId    Int      @map("tenant_id")
+  description String   @db.VarChar(500)
+  quantity    Decimal  @db.Decimal(10, 2)
+  unitPrice   Decimal  @map("unit_price") @db.Decimal(15, 2)
+  lineTotal   Decimal  @map("line_total") @db.Decimal(15, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  invoice     ARInvoice @relation(fields: [arInvoiceId], references: [id], onDelete: Cascade)
+
+  @@map("ar_invoice_lines")
+  @@index([arInvoiceId])
+}

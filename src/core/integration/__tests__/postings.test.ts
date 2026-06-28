@@ -13,6 +13,9 @@ import {
   addBudgetActual,
   decrementStockForSale,
   notifyLowStock,
+  postARInvoice,
+  postAPInvoice,
+  postInvoicePayment,
 } from '../postings';
 
 const T = 1;
@@ -202,5 +205,85 @@ describe('notifyLowStock', () => {
 
     await notifyLowStock(T, ['Pens']);
     expect(mockPrisma.notification.createMany).not.toHaveBeenCalled();
+  });
+});
+
+// Chart mock that satisfies both ensureAccount (findFirst → exists) and
+// recordJournalEntry (findMany → the given accounts).
+const fullChart = (accs: any[]) => ({
+  findFirst: vi.fn().mockResolvedValue({ id: 1 }),
+  findMany: vi.fn().mockResolvedValue(accs),
+  update: vi.fn().mockResolvedValue({}),
+  create: vi.fn().mockResolvedValue({ id: 99 }),
+});
+const journalMocks = () => {
+  mockPrisma.journalEntry = { count: vi.fn().mockResolvedValue(0), create: vi.fn().mockResolvedValue({ id: 1 }) };
+  mockPrisma.journalLine = { create: vi.fn().mockResolvedValue({}) };
+};
+
+describe('postARInvoice', () => {
+  it('posts Dr 1100 Receivable / Cr 4000 Revenue, both up by total', async () => {
+    mockPrisma.chartOfAccount = fullChart([
+      { id: 11, code: '1100', type: 'asset' },
+      { id: 40, code: '4000', type: 'revenue' },
+    ]);
+    journalMocks();
+    expect(await postARInvoice(T, U, { invoiceNumber: 'INV-1', total: 100 })).toBe(true);
+    expect(mockPrisma.journalLine.create).toHaveBeenCalledTimes(2);
+    expect(mockPrisma.chartOfAccount.update).toHaveBeenCalledWith({ where: { id: 11 }, data: { balance: { increment: 100 } } });
+    expect(mockPrisma.chartOfAccount.update).toHaveBeenCalledWith({ where: { id: 40 }, data: { balance: { increment: 100 } } });
+  });
+
+  it('no-ops on a non-positive total', async () => {
+    expect(await postARInvoice(T, U, { invoiceNumber: 'X', total: 0 })).toBe(false);
+  });
+});
+
+describe('postAPInvoice', () => {
+  it('posts Dr 5000 Expense / Cr 2000 Payable, both up by total', async () => {
+    mockPrisma.chartOfAccount = fullChart([
+      { id: 50, code: '5000', type: 'expense' },
+      { id: 20, code: '2000', type: 'liability' },
+    ]);
+    journalMocks();
+    expect(await postAPInvoice(T, U, { invoiceNumber: 'BILL-1', total: 200 })).toBe(true);
+    expect(mockPrisma.chartOfAccount.update).toHaveBeenCalledWith({ where: { id: 50 }, data: { balance: { increment: 200 } } });
+    expect(mockPrisma.chartOfAccount.update).toHaveBeenCalledWith({ where: { id: 20 }, data: { balance: { increment: 200 } } });
+  });
+
+  it('no-ops on a non-positive total', async () => {
+    expect(await postAPInvoice(T, U, { invoiceNumber: 'X', total: 0 })).toBe(false);
+  });
+});
+
+describe('postInvoicePayment', () => {
+  it('AR settlement moves cash IN (treasury credit) and clears the receivable', async () => {
+    mockPrisma.chartOfAccount = fullChart([
+      { id: 10, code: '1000', type: 'asset' },
+      { id: 11, code: '1100', type: 'asset' },
+    ]);
+    mockPrisma.bankAccount = { findFirst: vi.fn().mockResolvedValue({ id: 5, balance: 0 }), update: vi.fn().mockResolvedValue({}) };
+    mockPrisma.bankTransaction = { create: vi.fn().mockResolvedValue({}) };
+    journalMocks();
+    expect(await postInvoicePayment(T, U, { kind: 'AR', amount: 50, reference: 'INV-1' })).toBe(true);
+    expect(mockPrisma.bankTransaction.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ type: 'credit', amount: 50 }) }));
+    expect(mockPrisma.bankAccount.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ balance: { increment: 50 } }) }));
+  });
+
+  it('AP settlement moves cash OUT (treasury debit) and clears the payable', async () => {
+    mockPrisma.chartOfAccount = fullChart([
+      { id: 10, code: '1000', type: 'asset' },
+      { id: 20, code: '2000', type: 'liability' },
+    ]);
+    mockPrisma.bankAccount = { findFirst: vi.fn().mockResolvedValue({ id: 5, balance: 0 }), update: vi.fn().mockResolvedValue({}) };
+    mockPrisma.bankTransaction = { create: vi.fn().mockResolvedValue({}) };
+    journalMocks();
+    expect(await postInvoicePayment(T, U, { kind: 'AP', amount: 70, reference: 'BILL-1' })).toBe(true);
+    expect(mockPrisma.bankTransaction.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ type: 'debit', amount: 70 }) }));
+    expect(mockPrisma.bankAccount.update).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ balance: { increment: -70 } }) }));
+  });
+
+  it('no-ops on a non-positive amount', async () => {
+    expect(await postInvoicePayment(T, U, { kind: 'AR', amount: 0, reference: 'X' })).toBe(false);
   });
 });

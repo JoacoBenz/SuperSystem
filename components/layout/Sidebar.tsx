@@ -171,6 +171,7 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
   const financeChildren = [
     { key: '/finance', icon: <FundOutlined />, label: 'Dashboard' },
     { key: '/finance/payment-queue', icon: <ScheduleOutlined />, label: 'Payment Queue' },
+    { key: '/finance/aging', icon: <ClockCircleOutlined />, label: 'AR / AP Aging' },
     { key: '/finance/budgets', icon: <BankOutlined />, label: 'Budgets' },
   ];
 
@@ -210,6 +211,7 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
     children: [
       { key: '/sales', icon: <FundOutlined />, label: 'Dashboard' },
       { key: '/sales/orders', icon: <FileTextOutlined />, label: 'Orders' },
+      { key: '/sales/invoices', icon: <ProfileOutlined />, label: 'Invoices' },
       { key: '/sales/customers', icon: <TeamOutlined />, label: 'Customers' },
     ],
   };

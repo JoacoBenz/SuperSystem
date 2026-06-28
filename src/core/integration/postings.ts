@@ -145,6 +145,77 @@ export async function recordCOGS(tenantId: number, userId: number, items: SoldIt
   ]);
 }
 
+/**
+ * Post an issued AR invoice to the GL: Dr 1100 Accounts Receivable / Cr 4000 Revenue.
+ * (COGS is posted separately via recordCOGS when the invoice is tied to shipped goods.)
+ */
+export async function postARInvoice(
+  tenantId: number,
+  userId: number,
+  opts: { invoiceNumber: string; total: number },
+): Promise<boolean> {
+  const total = Number(opts.total) || 0;
+  if (total <= 0) return false;
+  await ensureAccount(tenantId, userId, '1100', 'Accounts Receivable', 'asset');
+  await ensureAccount(tenantId, userId, '4000', 'Revenue', 'revenue');
+  return recordJournalEntry(tenantId, userId, `AR invoice ${opts.invoiceNumber}`, [
+    { code: '1100', debit: total, memo: `Receivable ${opts.invoiceNumber}` },
+    { code: '4000', credit: total, memo: `Revenue ${opts.invoiceNumber}` },
+  ]);
+}
+
+/**
+ * Post an approved AP invoice to the GL: Dr expense (5000, or 1200 Inventory for
+ * stockable goods) / Cr 2000 Accounts Payable.
+ */
+export async function postAPInvoice(
+  tenantId: number,
+  userId: number,
+  opts: { invoiceNumber: string; total: number; expenseCode?: string },
+): Promise<boolean> {
+  const total = Number(opts.total) || 0;
+  if (total <= 0) return false;
+  const expenseCode = opts.expenseCode ?? '5000';
+  const isInventory = expenseCode === '1200';
+  await ensureAccount(tenantId, userId, expenseCode, isInventory ? 'Inventory' : 'Operating Expenses', isInventory ? 'asset' : 'expense');
+  await ensureAccount(tenantId, userId, '2000', 'Accounts Payable', 'liability');
+  return recordJournalEntry(tenantId, userId, `AP invoice ${opts.invoiceNumber}`, [
+    { code: expenseCode, debit: total, memo: `Expense ${opts.invoiceNumber}` },
+    { code: '2000', credit: total, memo: `Payable ${opts.invoiceNumber}` },
+  ]);
+}
+
+/**
+ * Settle an invoice: move cash in Treasury and post the GL clearing entry.
+ *  - AR: cash in  → Dr 1000 Cash / Cr 1100 Accounts Receivable
+ *  - AP: cash out → Dr 2000 Accounts Payable / Cr 1000 Cash
+ */
+export async function postInvoicePayment(
+  tenantId: number,
+  userId: number,
+  opts: { kind: 'AR' | 'AP'; amount: number; reference: string },
+): Promise<boolean> {
+  const amount = Number(opts.amount) || 0;
+  if (amount <= 0) return false;
+  await ensureAccount(tenantId, userId, '1000', 'Cash', 'asset');
+
+  if (opts.kind === 'AR') {
+    await ensureAccount(tenantId, userId, '1100', 'Accounts Receivable', 'asset');
+    await recordTreasuryMovement(tenantId, userId, { type: 'credit', amount, description: `Customer payment — ${opts.reference}`, reference: opts.reference });
+    return recordJournalEntry(tenantId, userId, `AR payment ${opts.reference}`, [
+      { code: '1000', debit: amount, memo: `Cash received ${opts.reference}` },
+      { code: '1100', credit: amount, memo: `Clear receivable ${opts.reference}` },
+    ]);
+  }
+
+  await ensureAccount(tenantId, userId, '2000', 'Accounts Payable', 'liability');
+  await recordTreasuryMovement(tenantId, userId, { type: 'debit', amount, description: `Vendor payment — ${opts.reference}`, reference: opts.reference });
+  return recordJournalEntry(tenantId, userId, `AP payment ${opts.reference}`, [
+    { code: '2000', debit: amount, memo: `Clear payable ${opts.reference}` },
+    { code: '1000', credit: amount, memo: `Cash paid ${opts.reference}` },
+  ]);
+}
+
 /** Roll spend into a live "actual" line under the tenant's active budget plan. */
 export async function addBudgetActual(tenantId: number, amount: number, category: string): Promise<boolean> {
   const p = prisma as any;

@@ -10,6 +10,7 @@ const TENANT_MODELS = [
   'quotation',
   'delegation',
   'budget',
+  'aRInvoice', 'aRInvoiceLine', 'aPInvoice', 'aPInvoiceLine', 'payment',
 ] as const;
 
 export function tenantPrisma(tenantId: number) {

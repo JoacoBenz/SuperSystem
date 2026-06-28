@@ -46,6 +46,12 @@ export const procurementNavigation: NavigationItem[] = [
     requiredPermissions: ['procurement.reception.read'],
   },
   {
+    key: '/procurement/invoices',
+    label: 'Invoices',
+    icon: 'FileTextOutlined',
+    requiredPermissions: ['procurement.invoice.read'],
+  },
+  {
     key: '/procurement/vendors',
     label: 'Vendors',
     icon: 'ShopOutlined',

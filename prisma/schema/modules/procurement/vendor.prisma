@@ -19,6 +19,7 @@ model Vendor {
   purchaseRequests PurchaseRequest[]
   purchaseOrders   PurchaseOrder[]
   quotations       Quotation[]
+  apInvoices       APInvoice[]
 
   @@unique([tenantId, taxId])
   @@index([tenantId, name])

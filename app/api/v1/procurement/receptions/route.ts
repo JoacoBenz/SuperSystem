@@ -3,7 +3,7 @@ import { created, ok } from '@/src/core/api/response';
 import { receptionSchema } from '@/src/modules/procurement/validators/reception.schema';
 import { ApiError } from '@/src/core/api/errors';
 import { StockService } from '@/src/modules/inventory';
-import { recordTreasuryMovement, recordJournalEntry, addBudgetActual } from '@/src/core/integration/postings';
+import { addBudgetActual, postAPInvoice } from '@/src/core/integration/postings';
 import { purchaseRequestWorkflow } from '@/src/modules/procurement/workflows/purchase-request.workflow';
 import { TransitionError, GuardError } from '@/src/core/state-machine/errors';
 import type { PurchaseRequestWorkflowContext } from '@/src/modules/procurement/types';
@@ -145,7 +145,8 @@ export const POST = withAuth(
       } catch { /* inventory module not yet active */ }
     }
 
-    // Completed purchase → cash out (Treasury) + expense posting (Accounting)
+    // Completed purchase → raise an AP invoice (Dr Expense / Cr Payable) instead of
+    // paying cash directly. Cash leaves when the bill is paid from the invoices view.
     const purchaseValue = (body.items ?? []).reduce((sum, item) => {
       const prItem = prItemMap.get(item.purchaseRequestItemId) as any;
       const unitCost = prItem?.estimatedPrice ? Number(prItem.estimatedPrice) : 0;
@@ -153,17 +154,45 @@ export const POST = withAuth(
     }, 0);
     if (purchaseValue > 0) {
       try {
-        const cash = await recordTreasuryMovement(session.tenantId, session.userId, { type: 'debit', amount: purchaseValue, description: `Payment for goods — ${pr.number}`, reference: pr.number });
-        const posted = await recordJournalEntry(session.tenantId, session.userId, `Purchase ${pr.number}`, [
-          { code: '5000', debit: purchaseValue, memo: `Expense ${pr.number}` },
-          { code: '1000', credit: purchaseValue, memo: `Cash out ${pr.number}` },
-        ]);
+        const count = await db.aPInvoice.count({ where: { tenantId: session.tenantId } });
+        const invoiceNumber = 'BILL-' + String(count + 1).padStart(5, '0');
+        const issueDate = new Date();
+        const dueDate = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const invoice = await db.aPInvoice.create({
+          data: {
+            tenantId: session.tenantId,
+            vendorId: (pr as any).vendorId ?? null,
+            purchaseRequestId: body.purchaseRequestId,
+            invoiceNumber,
+            status: 'approved',
+            issueDate,
+            dueDate,
+            subtotal: purchaseValue,
+            taxAmount: 0,
+            total: purchaseValue,
+            paidAmount: 0,
+            createdBy: session.userId,
+            approvedAt: issueDate,
+            items: {
+              create: (body.items ?? []).map(item => {
+                const prItem = prItemMap.get(item.purchaseRequestItemId) as any;
+                const unitCost = prItem?.estimatedPrice ? Number(prItem.estimatedPrice) : 0;
+                return {
+                  tenantId: session.tenantId,
+                  description: prItem?.description ?? 'Item',
+                  quantity: Number(item.quantityReceived),
+                  unitCost,
+                  lineTotal: Number(item.quantityReceived) * unitCost,
+                };
+              }),
+            },
+          },
+        });
+        const posted = await postAPInvoice(session.tenantId, session.userId, { invoiceNumber, total: purchaseValue });
         // Roll the spend into live budget actuals
         await addBudgetActual(session.tenantId, purchaseValue, 'Procurement Spend');
-        if (cash || posted) {
-          await audit.log({ action: 'create', resource: 'posting', moduleId: 'procurement', eventType: 'workflow', newData: { via: 'reception', pr: pr.number, amount: purchaseValue, treasury: cash, accounting: posted } });
-        }
-      } catch { /* treasury/accounting not set up — non-fatal */ }
+        await audit.log({ action: 'create', resource: 'ap_invoice', resourceId: invoice.id, moduleId: 'procurement', eventType: 'workflow', newData: { via: 'reception', pr: pr.number, invoiceNumber, amount: purchaseValue, accounting: posted } });
+      } catch { /* AP/accounting not set up — non-fatal */ }
     }
 
     return created(reception);

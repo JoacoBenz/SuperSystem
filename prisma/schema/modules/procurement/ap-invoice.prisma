@@ -1,0 +1,47 @@
+model APInvoice {
+  id                  Int       @id @default(autoincrement())
+  tenantId            Int       @map("tenant_id")
+  vendorId            Int?      @map("vendor_id")
+  purchaseRequestId   Int?      @map("purchase_request_id")
+  invoiceNumber       String    @map("invoice_number") @db.VarChar(50)
+  vendorInvoiceNumber String?   @map("vendor_invoice_number") @db.VarChar(100)
+  status              String    @default("draft") @db.VarChar(20) // draft | approved | paid | void
+  issueDate           DateTime  @default(now()) @map("issue_date")
+  dueDate             DateTime  @map("due_date")
+  subtotal            Decimal   @default(0) @db.Decimal(15, 2)
+  taxAmount           Decimal   @default(0) @map("tax_amount") @db.Decimal(15, 2)
+  total               Decimal   @default(0) @db.Decimal(15, 2)
+  paidAmount          Decimal   @default(0) @map("paid_amount") @db.Decimal(15, 2)
+  currency            String    @default("USD") @db.VarChar(10)
+  notes               String?   @db.Text
+  createdBy           Int       @map("created_by")
+  approvedAt          DateTime? @map("approved_at")
+  paidAt              DateTime? @map("paid_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  vendor              Vendor?         @relation(fields: [vendorId], references: [id])
+  items               APInvoiceLine[]
+
+  @@map("ap_invoices")
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, vendorId])
+  @@index([tenantId, dueDate])
+}
+
+model APInvoiceLine {
+  id          Int      @id @default(autoincrement())
+  apInvoiceId Int      @map("ap_invoice_id")
+  tenantId    Int      @map("tenant_id")
+  description String   @db.VarChar(500)
+  quantity    Decimal  @db.Decimal(10, 2)
+  unitCost    Decimal  @map("unit_cost") @db.Decimal(15, 2)
+  lineTotal   Decimal  @map("line_total") @db.Decimal(15, 2)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  invoice     APInvoice @relation(fields: [apInvoiceId], references: [id], onDelete: Cascade)
+
+  @@map("ap_invoice_lines")
+  @@index([apInvoiceId])
+}

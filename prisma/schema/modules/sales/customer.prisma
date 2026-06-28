@@ -13,6 +13,7 @@ model Customer {
   updatedAt    DateTime  @updatedAt @map("updated_at")
 
   salesOrders  SalesOrder[]
+  arInvoices   ARInvoice[]
 
   @@map("customers")
   @@index([tenantId, active])

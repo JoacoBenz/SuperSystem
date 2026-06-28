@@ -14,6 +14,12 @@ export const salesNavigation: NavigationItem[] = [
     requiredPermissions: ['sales.order.read'],
   },
   {
+    key: '/sales/invoices',
+    label: 'Invoices',
+    icon: 'FileTextOutlined',
+    requiredPermissions: ['sales.invoice.read'],
+  },
+  {
     key: '/sales/customers',
     label: 'Customers',
     icon: 'TeamOutlined',

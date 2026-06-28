@@ -26,6 +26,10 @@ export const procurementPermissions: PermissionDefinition[] = [
   { resource: 'reception', action: 'create', description: 'Record goods reception' },
   { resource: 'reception', action: 'read', description: 'View reception records' },
 
+  // AP Invoices (vendor bills)
+  { resource: 'invoice', action: 'read', description: 'View vendor (AP) invoices' },
+  { resource: 'invoice', action: 'manage', description: 'Create, approve and pay AP invoices' },
+
   // Vendors
   { resource: 'vendor', action: 'read', description: 'View vendors' },
   { resource: 'vendor', action: 'manage', description: 'Create, edit, delete vendors' },
@@ -98,6 +102,8 @@ export const procurementRoles: RoleDefinition[] = [
       'procurement.cost_center.read',
       'procurement.quotation.read',
       'procurement.quotation.manage',
+      'procurement.invoice.read',
+      'procurement.invoice.manage',
     ],
   },
   {
@@ -113,6 +119,8 @@ export const procurementRoles: RoleDefinition[] = [
       'procurement.cost_center.manage',
       'procurement.cost_center.read',
       'procurement.purchase_request.export',
+      'procurement.invoice.read',
+      'procurement.invoice.manage',
     ],
   },
 ];

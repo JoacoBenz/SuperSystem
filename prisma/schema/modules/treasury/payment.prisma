@@ -1,0 +1,19 @@
+/// Polymorphic payment against an AR or AP invoice. No FK on invoiceId — `kind`
+/// selects the table (AR → ar_invoices, AP → ap_invoices) — so it stays a thin
+/// settlement record shared by Sales and Procurement.
+model Payment {
+  id                Int      @id @default(autoincrement())
+  tenantId          Int      @map("tenant_id")
+  kind              String   @db.VarChar(2) // AR | AP
+  invoiceId         Int      @map("invoice_id")
+  amount            Decimal  @db.Decimal(15, 2)
+  method            String   @default("bank") @db.VarChar(30) // bank | cash | card | transfer
+  reference         String?  @db.VarChar(100)
+  bankTransactionId Int?     @map("bank_transaction_id")
+  paidAt            DateTime @default(now()) @map("paid_at")
+  createdBy         Int      @map("created_by")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  @@map("payments")
+  @@index([tenantId, kind, invoiceId])
+}

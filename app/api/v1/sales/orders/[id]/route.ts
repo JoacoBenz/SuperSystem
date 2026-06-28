@@ -2,7 +2,7 @@ import { withAuth } from '@/src/core/api/handler';
 import { ok } from '@/src/core/api/response';
 import { ApiError } from '@/src/core/api/errors';
 import { prisma } from '@/src/core/db/client';
-import { decrementStockForSale, recordTreasuryMovement, recordJournalEntry, recordCOGS, notifyLowStock } from '@/src/core/integration/postings';
+import { decrementStockForSale, recordCOGS, notifyLowStock, postARInvoice } from '@/src/core/integration/postings';
 import { z } from 'zod';
 
 const updateSchema = z.object({
@@ -81,21 +81,48 @@ export const PATCH = withAuth(
       } catch { /* inventory not set up — non-fatal */ }
     }
 
-    // Delivery completes the sale → cash in (Treasury) + revenue posting (Accounting)
+    // Delivery completes the sale → raise an AR invoice (Dr Receivable / Cr Revenue)
+    // instead of posting cash directly. Cash arrives when the invoice is paid.
     if (newStatus === 'delivered' && prevStatus !== 'delivered') {
       const amount = Number(updated.totalAmount) || 0;
       try {
-        const cash = await recordTreasuryMovement(tenantId, userId, { type: 'credit', amount, description: `Payment received — ${ref}`, reference: ref });
-        const posted = await recordJournalEntry(tenantId, userId, `Sale ${ref}`, [
-          { code: '1000', debit: amount, memo: `Cash from ${ref}` },
-          { code: '4000', credit: amount, memo: `Revenue ${ref}` },
-        ]);
+        const p = prisma as any;
+        const count = await p.aRInvoice.count({ where: { tenantId } });
+        const invoiceNumber = 'INV-' + String(count + 1).padStart(5, '0');
+        const issueDate = new Date();
+        const dueDate = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
+        const invoice = await p.aRInvoice.create({
+          data: {
+            tenantId,
+            customerId: order.customerId,
+            salesOrderId: order.id,
+            invoiceNumber,
+            status: 'issued',
+            issueDate,
+            dueDate,
+            subtotal: amount,
+            taxAmount: 0,
+            total: amount,
+            paidAmount: 0,
+            currency: updated.currency ?? 'USD',
+            createdBy: userId,
+            issuedAt: issueDate,
+            items: {
+              create: (order.items ?? []).map((i: any) => ({
+                tenantId,
+                description: i.description,
+                quantity: Number(i.quantity),
+                unitPrice: Number(i.unitPrice),
+                lineTotal: Number(i.totalPrice),
+              })),
+            },
+          },
+        });
+        const posted = await postARInvoice(tenantId, userId, { invoiceNumber, total: amount });
         // Cost of goods sold → Dr COGS / Cr Inventory (keeps margin + inventory value real)
-        await recordCOGS(tenantId, userId, (order.items ?? []).map((i: any) => ({ description: i.description, quantity: Number(i.quantity) })), ref);
-        if (cash || posted) {
-          await ctx.audit.log({ action: 'create', resource: 'posting', moduleId: 'sales', eventType: 'workflow', newData: { via: 'sales_delivered', order: ref, amount, treasury: cash, accounting: posted } });
-        }
-      } catch { /* treasury/accounting not set up — non-fatal */ }
+        await recordCOGS(tenantId, userId, (order.items ?? []).map((i: any) => ({ description: i.description, quantity: Number(i.quantity) })), invoiceNumber);
+        await ctx.audit.log({ action: 'create', resource: 'ar_invoice', resourceId: invoice.id, moduleId: 'sales', eventType: 'workflow', newData: { via: 'sales_delivered', order: ref, invoiceNumber, amount, accounting: posted } });
+      } catch { /* AR/accounting not set up — non-fatal */ }
     }
 
     return ok({ ...updated, totalAmount: Number(updated.totalAmount) });
