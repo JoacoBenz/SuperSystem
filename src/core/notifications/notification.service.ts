@@ -1,7 +1,26 @@
 import { prisma } from '@/src/core/db/client';
+import { sendEmail } from '@/src/core/providers/email';
+
+function escapeHtml(s: string): string {
+  return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
+}
+function emailHtml(title: string, message: string): string {
+  return `<div style="font-family:system-ui,Arial,sans-serif"><h2 style="margin:0 0 8px">${escapeHtml(title)}</h2><p>${escapeHtml(message)}</p><p style="color:#6b7280;font-size:12px">Sent by ERP Platform</p></div>`;
+}
 
 export class NotificationService {
   constructor(private tenantId: number) {}
+
+  /** Best-effort outbound email mirroring an in-app notification — never throws. */
+  private async dispatchEmails(emails: (string | null | undefined)[], title: string, message: string): Promise<void> {
+    try {
+      for (const to of emails) {
+        if (to) await sendEmail(this.tenantId, { to, subject: title, html: emailHtml(title, message) });
+      }
+    } catch {
+      /* outbound email is best-effort; in-app notification already persisted */
+    }
+  }
 
   async notifyUser(
     recipientId: number,
@@ -24,6 +43,12 @@ export class NotificationService {
         resourceId: resourceId ?? null,
       },
     });
+
+    const user = await prisma.user.findFirst({
+      where: { id: recipientId, tenantId: this.tenantId, active: true, deletedAt: null },
+      select: { email: true },
+    });
+    await this.dispatchEmails([user?.email], title, message);
   }
 
   async notifyUsersWithPermission(
@@ -51,7 +76,7 @@ export class NotificationService {
           },
         },
       },
-      select: { id: true },
+      select: { id: true, email: true },
     });
 
     if (users.length === 0) return;
@@ -67,5 +92,7 @@ export class NotificationService {
         resourceId: resourceId ?? null,
       })),
     });
+
+    await this.dispatchEmails(users.map(u => u.email), title, message);
   }
 }

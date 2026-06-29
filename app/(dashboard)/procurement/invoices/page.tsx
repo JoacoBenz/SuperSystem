@@ -97,8 +97,9 @@ export default function APInvoicesPage() {
     { title: 'Outstanding', dataIndex: 'outstanding', align: 'right', render: (v: number, r) => money(v, r.currency) },
     { title: 'Due', dataIndex: 'dueDate', width: 110, render: (v: string) => new Date(v).toLocaleDateString() },
     {
-      title: 'Actions', key: 'actions', width: 230, render: (_: unknown, inv) => (
+      title: 'Actions', key: 'actions', width: 300, render: (_: unknown, inv) => (
         <Space size="small">
+          <Button size="small" onClick={() => window.open(`/api/v1/procurement/ap-invoices/${inv.id}/document`, '_blank')}>Doc</Button>
           {inv.status === 'draft' && <Button size="small" type="primary" onClick={() => act(inv, 'approve')}>Approve</Button>}
           {inv.status === 'approved' && <Button size="small" icon={<DollarOutlined />} onClick={() => { setSelected(inv); payForm.setFieldsValue({ amount: inv.outstanding, method: 'bank' }); setPayOpen(true); }}>Pay</Button>}
           {(inv.status === 'draft' || inv.status === 'approved') && (

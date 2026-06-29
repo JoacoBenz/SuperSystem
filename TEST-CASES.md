@@ -246,13 +246,33 @@ End-to-end specification of the platform's use cases and the test cases that ver
 
 ---
 
+## 16. Automation layer (Phase 3 — dependency-free, config-gated providers)
+
+Built without new runtime deps: external channels use built-in `fetch`, gated on per-tenant config + env keys, and default to safe offline stubs so the build/tests/runtime stay green with nothing configured.
+
+### Use cases
+- UC-AUTO-1 Channel providers (email/…) resolve from per-tenant config, defaulting to a safe stub. UC-AUTO-2 Outbound email mirrors in-app notifications (best-effort). UC-AUTO-3 Generate printable documents (invoices, statements).
+
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-AUTO-1 | Resolve the email provider with nothing configured | returns the default `log` provider (no external call, never throws) |
+| TC-AUTO-2 | `NotificationService.notifyUser` / `notifyUsersWithPermission` | creates the in-app notification **and** dispatches email via the provider; provider failure is non-fatal (notification still created) |
+| TC-AUTO-3 | GET `/sales/ar-invoices/{id}/document` | 200, printable HTML with invoice number, customer, line items, total |
+| TC-AUTO-4 | GET `/procurement/ap-invoices/{id}/document` | 200, printable HTML (vendor bill) |
+| TC-AUTO-5 | GET `/accounting/statements/document` | 200, printable P&L / Balance Sheet / Cash Flow |
+| TC-AUTO-6 | GET a document for a non-existent invoice id | 404 |
+
+_Later Phase-3 cycles (to be added as built): bank-statement import + auto-reconcile, document-OCR → AP draft, Mercado Pago pay-links, e-invoicing — each behind the same provider abstraction with offline stubs._
+
+---
+
 ## Execution Results
 
 **Run date:** 2026-06-28 · **Build:** `main` @ Phase 1 (AR/AP) · **Env:** dev `:3737`, demo tenant (id 2).
 **Method:** transactional cases driven through the authenticated app session (logging in as the role each case requires — `admin`, `maria`, `juan`, `ana`, `pedro`, `laura`); screen cases by loading the page + reading the rendered tree/screenshot + browser console.
 
 ### Scorecard
-**105 test cases — 105 ✅ · 0 ⚠️ · 0 ❌.** No open defects. The first run's 2 ⚠️ + 6 observations were all fixed in PR #4 (balance plug, NaN guard, antd v6, user-create authz, journal balance, quotation perms) and re-verified below. New coverage: Product master (Phase 2.1) and Business Partners (Phase 2.2a).
+**111 test cases — 111 ✅ · 0 ⚠️ · 0 ❌.** No open defects. The first run's 2 ⚠️ + 6 observations were all fixed in PR #4 and re-verified below. Coverage now includes Product master (2.1), Business Partners (2.2a), productId re-keying (2.2b), and Automation cycle 3a (email-out + printable documents).
 
 ### 1. Auth / RBAC / Tenancy
 | ID | R | Evidence |
@@ -422,6 +442,16 @@ End-to-end specification of the platform's use cases and the test cases that ver
 | TC-FIX-4 | ✅ | member create-user → 403; admin → 201 |
 | TC-FIX-5 | ✅ | read-only quotation → 403; requester → 201 |
 | TC-FIX-6 | ✅ | Projects dashboard: no `valueStyle` warning |
+
+### 16. Automation layer (Phase 3 — cycle 3a)
+| ID | R | Evidence |
+|----|---|----------|
+| TC-AUTO-1 | ✅ | `log` provider is the default; sends ok without network (unit) |
+| TC-AUTO-2 | ✅ | notify creates the in-app notification + dispatches email; email failure is non-fatal (unit) |
+| TC-AUTO-3 | ✅ | AR invoice document → 200 `text/html`, invoice #/customer/total + Print button |
+| TC-AUTO-4 | ✅ | AP bill document → 200 ("Bill …") |
+| TC-AUTO-5 | ✅ | statements document → 200 (P&L / Balance Sheet / Cash Flow; Net Income) |
+| TC-AUTO-6 | ✅ | document for a missing id → 404 |
 
 ### Findings — all resolved (PR #4)
 1. ✅ **Balance sheet** — opening-balance equity plug (`prisma/setup-opening-balance.js`); now `balanced=true`.
