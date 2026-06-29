@@ -1,14 +1,15 @@
 import fs from 'fs/promises';
 import path from 'path';
+import type { SavedFile, StorageService } from './storage.types';
 
-export class LocalStorageService {
+export class LocalStorageService implements StorageService {
   private baseDir: string;
 
   constructor() {
     this.baseDir = path.join(process.cwd(), 'uploads');
   }
 
-  async save(tenantId: number, resourceType: string, resourceId: number, file: File): Promise<{ filePath: string; fileName: string; fileSize: number; mimeType: string }> {
+  async save(tenantId: number, resourceType: string, resourceId: number, file: File): Promise<SavedFile> {
     const dir = path.join(this.baseDir, String(tenantId), resourceType, String(resourceId));
     await fs.mkdir(dir, { recursive: true });
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');

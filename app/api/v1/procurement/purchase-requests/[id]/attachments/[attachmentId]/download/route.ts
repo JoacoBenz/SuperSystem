@@ -1,6 +1,6 @@
 import { withAuth } from '@/src/core/api/handler';
 import { ApiError } from '@/src/core/api/errors';
-import { LocalStorageService } from '@/src/core/storage/local-storage.service';
+import { getStorage } from '@/src/core/storage';
 import { NextResponse } from 'next/server';
 
 export const GET = withAuth(
@@ -10,7 +10,7 @@ export const GET = withAuth(
     const attachment = await ctx.db.fileAttachment.findUnique({ where: { id: attachmentId } });
     if (!attachment || attachment.deletedAt) throw new ApiError('NOT_FOUND', 'Attachment not found', 404);
 
-    const storage = new LocalStorageService();
+    const storage = getStorage();
     const buffer = await storage.read(attachment.filePath);
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
