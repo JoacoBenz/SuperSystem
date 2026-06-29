@@ -7,6 +7,8 @@ export const crmPermissions: PermissionDefinition[] = [
   { resource: 'company', action: 'manage', description: 'Create and manage CRM companies' },
   { resource: 'opportunity', action: 'read', description: 'View CRM opportunities' },
   { resource: 'opportunity', action: 'manage', description: 'Create and manage CRM opportunities' },
+  { resource: 'partner', action: 'read', description: 'View business partners (360° view)' },
+  { resource: 'partner', action: 'manage', description: 'Create, edit and link business partners' },
   { resource: 'dashboard', action: 'read', description: 'View CRM dashboard' },
 ];
 
@@ -21,6 +23,8 @@ export const crmRoles: RoleDefinition[] = [
       'crm.company.manage',
       'crm.opportunity.read',
       'crm.opportunity.manage',
+      'crm.partner.read',
+      'crm.partner.manage',
       'crm.dashboard.read',
     ],
   },
@@ -32,6 +36,7 @@ export const crmRoles: RoleDefinition[] = [
       'crm.company.read',
       'crm.opportunity.read',
       'crm.opportunity.manage',
+      'crm.partner.read',
       'crm.dashboard.read',
     ],
   },
@@ -42,6 +47,7 @@ export const crmRoles: RoleDefinition[] = [
       'crm.contact.read',
       'crm.company.read',
       'crm.opportunity.read',
+      'crm.partner.read',
       'crm.dashboard.read',
     ],
   },

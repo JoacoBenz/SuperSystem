@@ -3,6 +3,7 @@ model Vendor {
   tenantId    Int       @map("tenant_id")
   name        String    @db.VarChar(255)
   taxId       String?   @map("tax_id") @db.VarChar(20)
+  businessPartnerId Int? @map("business_partner_id")
   bankDetails String?   @map("bank_details")
   website     String?   @db.VarChar(500)
   phone       String?   @db.VarChar(50)
@@ -23,5 +24,6 @@ model Vendor {
 
   @@unique([tenantId, taxId])
   @@index([tenantId, name])
+  @@index([tenantId, businessPartnerId])
   @@map("vendors")
 }

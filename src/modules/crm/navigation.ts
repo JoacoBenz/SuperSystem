@@ -25,4 +25,10 @@ export const crmNavigation: NavigationItem[] = [
     icon: 'RiseOutlined',
     requiredPermissions: ['crm.opportunity.read'],
   },
+  {
+    key: '/crm/partners',
+    label: 'Partners',
+    icon: 'IdcardOutlined',
+    requiredPermissions: ['crm.partner.read'],
+  },
 ];

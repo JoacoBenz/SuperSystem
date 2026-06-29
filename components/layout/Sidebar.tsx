@@ -226,6 +226,7 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
       { key: '/crm/companies', icon: <BankOutlined />, label: 'Companies' },
       { key: '/crm/contacts', icon: <TeamOutlined />, label: 'Contacts' },
       { key: '/crm/opportunities', icon: <RiseOutlined />, label: 'Opportunities' },
+      { key: '/crm/partners', icon: <IdcardOutlined />, label: 'Partners' },
     ],
   };
 

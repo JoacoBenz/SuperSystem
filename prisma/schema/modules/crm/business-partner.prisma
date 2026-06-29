@@ -1,0 +1,41 @@
+/// Business partner master — one entity that unifies a sales Customer, a procurement
+/// Vendor and/or a CRM company. Those records carry an optional businessPartnerId
+/// pointing here (soft-link, non-breaking), enabling a single 360° partner view.
+model BusinessPartner {
+  id        Int       @id @default(autoincrement())
+  tenantId  Int       @map("tenant_id")
+  name      String    @db.VarChar(255)
+  taxId     String?   @map("tax_id") @db.VarChar(100)
+  roles     String    @default("both") @db.VarChar(20) // customer | vendor | both
+  email     String?   @db.VarChar(255)
+  phone     String?   @db.VarChar(50)
+  address   String?   @db.Text
+  notes     String?   @db.Text
+  active    Boolean   @default(true)
+  deletedAt DateTime? @map("deleted_at")
+  createdBy Int       @map("created_by")
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+
+  contacts  BusinessPartnerContact[]
+
+  @@map("business_partners")
+  @@index([tenantId, active])
+  @@index([tenantId, name])
+}
+
+model BusinessPartnerContact {
+  id                Int      @id @default(autoincrement())
+  tenantId          Int      @map("tenant_id")
+  businessPartnerId Int      @map("business_partner_id")
+  name              String   @db.VarChar(255)
+  title             String?  @db.VarChar(100)
+  email             String?  @db.VarChar(255)
+  phone             String?  @db.VarChar(50)
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  partner BusinessPartner @relation(fields: [businessPartnerId], references: [id], onDelete: Cascade)
+
+  @@map("business_partner_contacts")
+  @@index([businessPartnerId])
+}
