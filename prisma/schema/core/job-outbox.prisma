@@ -1,0 +1,18 @@
+/// Durable job queue for work that must move OFF the request path (outbound email, etc.)
+/// — Vercel functions are short-lived, so inline external calls block responses and risk
+/// timeouts. Drained by the Vercel Cron route. No tenant_id (the drainer is cross-tenant;
+/// tenant lives in the payload), so it's RLS-exempt by design.
+model JobOutbox {
+  id          Int       @id @default(autoincrement())
+  kind        String    @db.VarChar(50)
+  payload     Json
+  status      String    @default("pending") @db.VarChar(20) // pending | processing | done | failed
+  attempts    Int       @default(0)
+  runAfter    DateTime  @default(now()) @map("run_after") @db.Timestamptz
+  lastError   String?   @map("last_error")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  processedAt DateTime? @map("processed_at") @db.Timestamptz
+
+  @@index([status, runAfter])
+  @@map("job_outbox")
+}

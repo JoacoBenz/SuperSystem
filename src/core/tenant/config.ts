@@ -1,5 +1,22 @@
 import { prisma } from '@/src/core/db/client';
 import { cached, invalidateCache } from '@/src/core/cache';
+import { decryptField, encryptField } from '@/src/core/crypto/field-encryption';
+
+// Per-tenant config keys that hold secrets — encrypted at rest, decrypted on read.
+const SECRET_CONFIG_KEYS = new Set<string>([
+  'resend_api_key',
+  'mercadopago_access_token',
+  'anthropic_api_key',
+]);
+
+export function isSecretConfigKey(key: string): boolean {
+  return SECRET_CONFIG_KEYS.has(key);
+}
+
+/** Encrypt a config value before persisting it (no-op for non-secret keys). */
+export function encryptConfigValue(key: string, value: string): string {
+  return SECRET_CONFIG_KEYS.has(key) ? (encryptField(value) ?? value) : value;
+}
 
 export async function getTenantConfig(tenantId: number): Promise<Map<string, string>> {
   const cacheKey = `t:${tenantId}:config`;
@@ -18,7 +35,9 @@ export async function getTenantConfigValue(
   defaultValue = '',
 ): Promise<string> {
   const config = await getTenantConfig(tenantId);
-  return config.get(key) ?? defaultValue;
+  const raw = config.get(key);
+  if (raw === undefined) return defaultValue;
+  return SECRET_CONFIG_KEYS.has(key) ? (decryptField(raw) ?? defaultValue) : raw;
 }
 
 export async function getTenantConfigBool(

@@ -13,6 +13,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     ...(process.env.AZURE_AD_CLIENT_ID ? [microsoftProvider] : []),
   ],
   session: { strategy: 'jwt', maxAge: 8 * 60 * 60 },
+  // Trust the Vercel/proxy host header; force secure (HTTPS-only) cookies in prod.
+  // Session cookies are httpOnly + sameSite=lax by default in NextAuth v5.
+  trustHost: true,
+  useSecureCookies: process.env.NODE_ENV === 'production',
   pages: { signIn: '/login' },
   callbacks: {
     async signIn({ user, account }) {

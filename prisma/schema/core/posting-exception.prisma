@@ -1,0 +1,14 @@
+/// A cross-module posting that quietly no-opped (missing GL account, no bank account…).
+/// Surfaced as a "postings needing attention" list so failures aren't silent.
+model PostingException {
+  id        Int      @id @default(autoincrement())
+  tenantId  Int      @map("tenant_id")
+  source    String   @db.VarChar(100)
+  reference String?  @db.VarChar(255)
+  reason    String
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([tenantId, resolved])
+  @@map("posting_exceptions")
+}

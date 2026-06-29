@@ -2,6 +2,8 @@ import { withAuth } from '@/src/core/api/handler';
 import { paginated, created } from '@/src/core/api/response';
 import { ApiError } from '@/src/core/api/errors';
 import { prisma } from '@/src/core/db/client';
+import { nextDocumentNumber } from '@/src/core/integration/numbering';
+import { parsePagination } from '@/src/core/api/pagination';
 import { z } from 'zod';
 
 const p = prisma as any;
@@ -38,8 +40,7 @@ export const GET = withAuth(
   async (_request, ctx) => {
     const { query } = ctx;
     const tenantId = ctx.session.tenantId;
-    const page = parseInt(query.get('page') ?? '1');
-    const pageSize = parseInt(query.get('limit') ?? '20');
+    const { page, limit: pageSize, skip } = parsePagination(query);
     const status = query.get('status') ?? undefined;
 
     const where: Record<string, unknown> = { tenantId };
@@ -49,7 +50,7 @@ export const GET = withAuth(
       p.aRInvoice.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        skip: (page - 1) * pageSize,
+        skip,
         take: pageSize,
         include: { customer: { select: { id: true, name: true } }, _count: { select: { items: true } } },
       }),
@@ -71,8 +72,9 @@ export const POST = withAuth(
 
     const subtotal = b.items.reduce((s: number, i: any) => s + i.quantity * i.unitPrice, 0);
     const total = subtotal + (b.taxAmount ?? 0);
-    const count = await p.aRInvoice.count({ where: { tenantId } });
-    const invoiceNumber = 'INV-' + String(count + 1).padStart(5, '0');
+    const invoiceNumber = await nextDocumentNumber(p, tenantId, 'INV', {
+      prefix: 'INV-', pad: 5, seed: () => p.aRInvoice.count({ where: { tenantId } }),
+    });
     const issueDate = new Date();
     const dueDate = b.dueDate ? new Date(b.dueDate) : new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
 

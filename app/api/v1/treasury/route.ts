@@ -1,6 +1,7 @@
 import { withAuth } from '@/src/core/api/handler';
 import { paginated, created } from '@/src/core/api/response';
 import { prisma } from '@/src/core/db/client';
+import { encryptField, decryptField } from '@/src/core/crypto/field-encryption';
 import { z } from 'zod';
 
 const createAccountSchema = z.object({
@@ -49,6 +50,7 @@ export const GET = withAuth(
     return paginated(
       data.map((a: any) => ({
         ...a,
+        accountNumber: decryptField(a.accountNumber),
         balance: Number(a.balance),
         transactionCount: a._count.transactions,
         _count: undefined,
@@ -69,13 +71,13 @@ export const POST = withAuth(
         tenantId: ctx.session.tenantId,
         name,
         bankName,
-        accountNumber: accountNumber ?? null,
+        accountNumber: accountNumber ? encryptField(accountNumber) : null,
         accountType: accountType ?? 'checking',
         currency: currency ?? 'USD',
         notes: notes ?? null,
         createdBy: ctx.session.userId,
       },
     });
-    return created({ ...account, balance: Number(account.balance) });
+    return created({ ...account, accountNumber: decryptField(account.accountNumber), balance: Number(account.balance) });
   },
 );

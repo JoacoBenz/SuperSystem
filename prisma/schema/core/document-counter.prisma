@@ -1,0 +1,10 @@
+/// Per-tenant, per-document-type monotonic counter for collision-safe numbering.
+/// Bumped atomically by src/core/integration/numbering.ts.
+model DocumentCounter {
+  tenantId Int    @map("tenant_id")
+  docType  String @map("doc_type") @db.VarChar(50)
+  value    Int    @default(0)
+
+  @@id([tenantId, docType])
+  @@map("document_counters")
+}

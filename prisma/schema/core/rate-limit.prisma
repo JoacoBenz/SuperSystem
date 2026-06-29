@@ -1,0 +1,11 @@
+/// Durable, cross-instance rate-limit / lockout counter. Keyed by an opaque string
+/// (e.g. "login:<email>", "lockout:<email>"). Managed via raw SQL in
+/// src/core/security/rate-limit.ts. No tenant_id — exempt from RLS by design.
+model RateLimit {
+  key     String   @id @db.VarChar(255)
+  count   Int      @default(0)
+  resetAt DateTime @map("reset_at") @db.Timestamptz
+
+  @@index([resetAt])
+  @@map("rate_limits")
+}

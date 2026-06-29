@@ -5,6 +5,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // holds the same object reference, mutating mockPrisma's methods per-test is visible.
 const { mockPrisma } = vi.hoisted(() => ({ mockPrisma: {} as any }));
 vi.mock('@/src/core/db/client', () => ({ prisma: mockPrisma }));
+// Numbering + exception logging are covered by their own tests; stub them here so these
+// tests stay focused on GL/treasury/stock logic.
+vi.mock('../numbering', () => ({
+  nextDocumentNumber: vi.fn(async (_c: any, _t: number, docType: string) => `${docType}-00001`),
+}));
+vi.mock('../posting-exceptions', () => ({ recordPostingException: vi.fn() }));
 
 import {
   recordTreasuryMovement,
@@ -23,6 +29,9 @@ const U = 2;
 
 beforeEach(() => {
   for (const k of Object.keys(mockPrisma)) delete mockPrisma[k];
+  // Posting writes run inside withTenantTx → prisma.$transaction; run the callback
+  // against the same mock so per-model stubs remain visible.
+  mockPrisma.$transaction = (cb: any) => cb(mockPrisma);
 });
 
 describe('recordTreasuryMovement', () => {

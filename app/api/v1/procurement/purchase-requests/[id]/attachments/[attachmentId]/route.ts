@@ -1,7 +1,7 @@
 import { withAuth } from '@/src/core/api/handler';
 import { noContent } from '@/src/core/api/response';
 import { ApiError } from '@/src/core/api/errors';
-import { LocalStorageService } from '@/src/core/storage/local-storage.service';
+import { getStorage } from '@/src/core/storage';
 
 export const DELETE = withAuth(
   { moduleId: 'procurement', permissionsAny: ['procurement.quotation.manage', 'procurement.purchase_request.create', 'procurement.purchase_request.update_own'] },
@@ -14,7 +14,7 @@ export const DELETE = withAuth(
       where: { id: attachmentId },
       data: { deletedAt: new Date() },
     });
-    const storage = new LocalStorageService();
+    const storage = getStorage();
     await storage.delete(attachment.filePath);
     return noContent();
   },
