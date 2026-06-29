@@ -3,6 +3,7 @@ import { paginated, created } from '@/src/core/api/response';
 import { apiError } from '@/src/core/api/errors';
 import { prisma } from '@/src/core/db/client';
 import { nextDocumentNumber } from '@/src/core/integration/numbering';
+import { parsePagination } from '@/src/core/api/pagination';
 import { z } from 'zod';
 
 const journalLineSchema = z.object({
@@ -23,8 +24,7 @@ export const GET = withAuth(
   async (_request, ctx) => {
     const { query } = ctx;
     const tenantId = ctx.session.tenantId;
-    const page = parseInt(query.get('page') ?? '1');
-    const limit = parseInt(query.get('limit') ?? '20');
+    const { page, limit, skip } = parsePagination(query);
     const status = query.get('status') ?? undefined;
 
     const where: Record<string, unknown> = { tenantId };
@@ -34,7 +34,7 @@ export const GET = withAuth(
       (prisma as any).journalEntry.findMany({
         where,
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
-        skip: (page - 1) * limit,
+        skip,
         take: limit,
         include: {
           _count: { select: { lines: true } },

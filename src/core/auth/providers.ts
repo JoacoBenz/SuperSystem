@@ -18,14 +18,14 @@ export const credentialsProvider = Credentials({
     if (!email || !password) return null;
 
     // Rate limit
-    const rl = checkRateLimit(`login:${email}`, 10, 60_000);
+    const rl = await checkRateLimit(`login:${email}`, 10, 60_000);
     if (!rl.allowed) {
       logger.warn('security', 'rate_limited', { email });
       throw new Error('Too many login attempts. Please try again later.');
     }
 
     // Account lockout
-    const lockout = checkAccountLockout(email);
+    const lockout = await checkAccountLockout(email);
     if (lockout.locked) {
       logger.warn('security', 'account_locked', { email });
       throw new Error('Account temporarily locked. Please try again later.');
@@ -37,19 +37,19 @@ export const credentialsProvider = Credentials({
     });
 
     if (!user || !user.passwordHash) {
-      recordFailedLogin(email);
+      await recordFailedLogin(email);
       logger.info('security', 'login_failed', { email, reason: 'invalid_credentials' });
       return null;
     }
 
     const valid = await compare(password, user.passwordHash);
     if (!valid) {
-      const result = recordFailedLogin(email);
+      const result = await recordFailedLogin(email);
       logger.info('security', 'login_failed', { email, reason: 'wrong_password', locked: result.locked });
       return null;
     }
 
-    clearFailedLogins(email);
+    await clearFailedLogins(email);
     logger.info('security', 'login_success', { email, userId: user.id });
 
     return {
@@ -64,12 +64,16 @@ export const credentialsProvider = Credentials({
 export const googleProvider = Google({
   clientId: process.env.GOOGLE_CLIENT_ID!,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-  allowDangerousEmailAccountLinking: true,
+  // Do NOT auto-link OAuth logins to an existing local account by email — that enables
+  // account takeover if the OAuth email is attacker-controlled.
+  allowDangerousEmailAccountLinking: false,
 });
 
 export const microsoftProvider = MicrosoftEntraID({
   clientId: process.env.AZURE_AD_CLIENT_ID!,
   clientSecret: process.env.AZURE_AD_CLIENT_SECRET!,
   issuer: `https://login.microsoftonline.com/${process.env.AZURE_AD_TENANT_ID}/v2.0`,
-  allowDangerousEmailAccountLinking: true,
+  // Do NOT auto-link OAuth logins to an existing local account by email — that enables
+  // account takeover if the OAuth email is attacker-controlled.
+  allowDangerousEmailAccountLinking: false,
 });

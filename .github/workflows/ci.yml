@@ -26,3 +26,5 @@ jobs:
       - run: npm run typecheck
       - run: npm run test
       - run: npm run build
+      # Supply-chain gate: fail on high/critical vulns in shipped dependencies.
+      - run: npm audit --omit=dev --audit-level=high
