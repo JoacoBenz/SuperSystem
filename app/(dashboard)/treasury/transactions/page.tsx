@@ -32,6 +32,9 @@ export default function TreasuryTransactionsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [form] = Form.useForm();
+  const [importOpen, setImportOpen] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importForm] = Form.useForm();
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -90,6 +93,27 @@ export default function TreasuryTransactionsPage() {
       message.error('An error occurred');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleImport = async (values: any) => {
+    setImporting(true);
+    try {
+      const res = await fetch('/api/v1/treasury/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bankAccountId: values.bankAccountId, csv: values.csv }),
+      });
+      const json = await res.json();
+      if (!res.ok) { message.error(json?.error?.message ?? 'Import failed'); return; }
+      message.success(`Imported ${json.imported} · reconciled ${json.reconciled} · duplicates ${json.duplicates}`);
+      setImportOpen(false);
+      importForm.resetFields();
+      fetchData();
+    } catch {
+      message.error('An error occurred');
+    } finally {
+      setImporting(false);
     }
   };
 
@@ -153,6 +177,9 @@ export default function TreasuryTransactionsPage() {
           </Title>
         </Col>
         <Col>
+          <Button style={{ marginRight: 8 }} onClick={() => setImportOpen(true)}>
+            Import Statement
+          </Button>
           <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
             New Transaction
           </Button>
@@ -240,6 +267,25 @@ export default function TreasuryTransactionsPage() {
           </Row>
           <Form.Item name="reference" label="Reference">
             <Input placeholder="INV-001, CHK-4567..." />
+          </Form.Item>
+        </Form>
+      </Modal>
+
+      <Modal
+        title="Import Bank Statement (CSV)"
+        open={importOpen}
+        onCancel={() => { setImportOpen(false); importForm.resetFields(); }}
+        onOk={() => importForm.submit()}
+        confirmLoading={importing}
+        destroyOnHidden
+        width={560}
+      >
+        <Form form={importForm} layout="vertical" onFinish={handleImport}>
+          <Form.Item name="bankAccountId" label="Account" rules={[{ required: true, message: 'Required' }]}>
+            <Select placeholder="Select account" options={accountOptions} />
+          </Form.Item>
+          <Form.Item name="csv" label="Statement CSV" rules={[{ required: true, message: 'Paste the CSV' }]} extra="Columns: date, description, amount (or credit/debit), reference. Lines matching an existing reference are reconciled; new lines are posted.">
+            <Input.TextArea rows={8} placeholder={'date,description,amount,reference\n2026-06-01,Client payment,500.00,INV-1'} />
           </Form.Item>
         </Form>
       </Modal>

@@ -262,7 +262,18 @@ Built without new runtime deps: external channels use built-in `fetch`, gated on
 | TC-AUTO-5 | GET `/accounting/statements/document` | 200, printable P&L / Balance Sheet / Cash Flow |
 | TC-AUTO-6 | GET a document for a non-existent invoice id | 404 |
 
-_Later Phase-3 cycles (to be added as built): bank-statement import + auto-reconcile, document-OCR → AP draft, Mercado Pago pay-links, e-invoicing — each behind the same provider abstraction with offline stubs._
+### Cycle 3b — bank-statement import + reconciliation
+- UC-AUTO-4 Import a bank statement (CSV) → upsert transactions (idempotent by reference) and auto-reconcile against recorded payments.
+
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-BANK-1 | Parse a CSV statement (header + rows) | rows with date/description/amount(signed)/reference (pure) |
+| TC-BANK-2 | POST `/treasury/import` with new lines | creates transactions, adjusts the account balance, returns `imported` count |
+| TC-BANK-3 | Re-import the same CSV | idempotent — references already present are counted as duplicates (no double-post) |
+| TC-BANK-4 | Import a line whose reference matches a recorded (unreconciled) transaction | reconciles that transaction instead of creating a new one |
+| TC-BANK-5 | POST `/treasury/import` to a non-existent bank account | 404 |
+
+_Later (cycle 3c): document-OCR → AP draft, Mercado Pago pay-links, e-invoicing — same provider pattern with offline stubs._
 
 ---
 
@@ -272,7 +283,7 @@ _Later Phase-3 cycles (to be added as built): bank-statement import + auto-recon
 **Method:** transactional cases driven through the authenticated app session (logging in as the role each case requires — `admin`, `maria`, `juan`, `ana`, `pedro`, `laura`); screen cases by loading the page + reading the rendered tree/screenshot + browser console.
 
 ### Scorecard
-**111 test cases — 111 ✅ · 0 ⚠️ · 0 ❌.** No open defects. The first run's 2 ⚠️ + 6 observations were all fixed in PR #4 and re-verified below. Coverage now includes Product master (2.1), Business Partners (2.2a), productId re-keying (2.2b), and Automation cycle 3a (email-out + printable documents).
+**116 test cases — 116 ✅ · 0 ⚠️ · 0 ❌.** No open defects. The first run's 2 ⚠️ + 6 observations were all fixed in PR #4 and re-verified below. Coverage now includes Product master (2.1), Business Partners (2.2a), productId re-keying (2.2b), and Automation cycles 3a (email-out + documents) and 3b (bank import + reconcile).
 
 ### 1. Auth / RBAC / Tenancy
 | ID | R | Evidence |
@@ -452,6 +463,11 @@ _Later Phase-3 cycles (to be added as built): bank-statement import + auto-recon
 | TC-AUTO-4 | ✅ | AP bill document → 200 ("Bill …") |
 | TC-AUTO-5 | ✅ | statements document → 200 (P&L / Balance Sheet / Cash Flow; Net Income) |
 | TC-AUTO-6 | ✅ | document for a missing id → 404 |
+| TC-BANK-1 | ✅ | CSV parsed — signed amount, credit/debit columns, quoted/paren amounts (unit) |
+| TC-BANK-2 | ✅ | import 2 new lines → posted, balance **+300** |
+| TC-BANK-3 | ✅ | re-import same CSV → **2 duplicates**, balance unchanged (idempotent) |
+| TC-BANK-4 | ✅ | line matching "PR-RUN-2026-10" **reconciled** an existing txn (no new row) |
+| TC-BANK-5 | ✅ | import to a non-existent account → 404 |
 
 ### Findings — all resolved (PR #4)
 1. ✅ **Balance sheet** — opening-balance equity plug (`prisma/setup-opening-balance.js`); now `balanced=true`.
