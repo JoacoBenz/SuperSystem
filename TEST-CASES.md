@@ -286,13 +286,49 @@ Built without new runtime deps: external channels use built-in `fetch`, gated on
 
 ---
 
+## 17. Extended & edge-case coverage (full-system pass)
+
+New cases beyond the per-feature suites above — validation, partial settlement, overdue aging, unlink, RBAC on the new endpoints, a cross-feature E2E, and a second-tenant isolation check.
+
+### Validation / negative
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-VAL-1 | POST AR invoice with empty `items` | 422 |
+| TC-VAL-2 | POST product with no `sku` | 422 |
+| TC-VAL-3 | POST partner with no `name` | 422 |
+| TC-VAL-4 | POST AP invoice with empty `items` | 422 |
+| TC-VAL-5 | POST sales order with empty `items` | 422 |
+
+### Partial settlement & aging
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-PARTIAL-1 | AR invoice total 100 → pay 40 → pay 60 | after 40: status `issued`, paid 40, outstanding 60; after 60: `paid` |
+| TC-PARTIAL-2 | AP bill total 100 → pay 40 (partial) | status `approved`, paid 40, outstanding 60 |
+| TC-AGE-1 | Issue an AR invoice with a due date ~60 days past | appears in aging under a past-due bucket (`d31_60`) with the right outstanding |
+
+### Master-data & RBAC on new endpoints
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-PART-7 | Link a customer to a partner, then **unlink** | 360 view no longer lists that customer |
+| TC-RBAC-N1 | `maria` (no `inventory.product.manage`) POST product | 403 |
+| TC-RBAC-N2 | `maria` (no `crm.partner.manage`) POST partner | 403 |
+| TC-RBAC-N3 | `maria` (no `treasury.transaction.manage`) POST `/treasury/import` | 403 |
+
+### Cross-feature E2E & tenancy
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-E2E-1 | product → SO(product) → deliver → AR invoice → document → pay-link → pay | each step OK; productId on the invoice line; GL `difference` invariant; status → paid |
+| TC-TENANT-2 | login `admin@acme.com`; GET a demo-tenant AR invoice by id | 404 (cross-tenant isolation) |
+
+---
+
 ## Execution Results
 
 **Run date:** 2026-06-28 · **Build:** `main` @ Phase 1 (AR/AP) · **Env:** dev `:3737`, demo tenant (id 2).
 **Method:** transactional cases driven through the authenticated app session (logging in as the role each case requires — `admin`, `maria`, `juan`, `ana`, `pedro`, `laura`); screen cases by loading the page + reading the rendered tree/screenshot + browser console.
 
 ### Scorecard
-**121 test cases — 121 ✅ · 0 ⚠️ · 0 ❌.** No open defects. The first run's 2 ⚠️ + 6 observations were all fixed in PR #4 and re-verified below. Coverage spans every module + Product master (2.1), Business Partners (2.2a), productId re-keying (2.2b), and Automation cycles 3a (email/documents), 3b (bank import/reconcile), 3c (pay-links, OCR, e-invoicing scaffold). **Phase 3 complete.**
+**135 test cases — 135 ✅ · 0 ⚠️ · 0 ❌.** No open defects. The first run's 2 ⚠️ + 6 observations were all fixed in PR #4 and re-verified below. Coverage spans every module + Product master (2.1), Business Partners (2.2a), productId re-keying (2.2b), and Automation cycles 3a/3b/3c. **Phase 3 complete.** §17 is a full-system pass adding validation, partial settlement, overdue aging, unlink, RBAC on the new endpoints, a cross-feature E2E, and second-tenant isolation.
 
 ### 1. Auth / RBAC / Tenancy
 | ID | R | Evidence |
@@ -482,6 +518,19 @@ Built without new runtime deps: external channels use built-in `fetch`, gated on
 | TC-PAY-3 | ✅ | pay-link for a paid invoice → 400 |
 | TC-OCR-1 | ✅ | OCR endpoint (stub) → 200 `{ configured:false }` (graceful) |
 | TC-OCR-2 | ✅ | stub OCR + no-op tax provider unit-tested |
+
+### 17. Extended & edge-case coverage (full-system pass)
+| ID | R | Evidence |
+|----|---|----------|
+| TC-VAL-1…5 | ✅ | empty-items AR/AP/SO, no-sku product, no-name partner → all **422** |
+| TC-PARTIAL-1 | ✅ | AR pay 40 → `issued` (paid 40, outstanding 60); pay 60 → `paid` |
+| TC-PARTIAL-2 | ✅ | AP pay 40 → `approved` (paid 40, outstanding 60) |
+| TC-AGE-1 | ✅ | 45-day-overdue invoice → bucket **d31_60**, outstanding 33 |
+| TC-PART-7 | ✅ | link then unlink → 360 view drops the customer |
+| TC-RBAC-N1/2/3 | ✅ | `maria` → product / partner / treasury-import all **403** |
+| TC-E2E-1 | ✅ | product→SO→deliver→AR (productId 10)→doc 200→pay-link 200→**paid**; GL difference invariant 0 |
+| TC-TENANT-2 | ✅ | `admin@acme.com` reading a demo invoice → **404** |
+| System health | ✅ | 17 module read endpoints all 200; GL **balanced** (difference 0) |
 
 ### Findings — all resolved (PR #4)
 1. ✅ **Balance sheet** — opening-balance equity plug (`prisma/setup-opening-balance.js`); now `balanced=true`.
