@@ -11,6 +11,7 @@ const TENANT_MODELS = [
   'delegation',
   'budget',
   'aRInvoice', 'aRInvoiceLine', 'aPInvoice', 'aPInvoiceLine', 'payment',
+  'postingException',
 ] as const;
 
 export function tenantPrisma(tenantId: number) {

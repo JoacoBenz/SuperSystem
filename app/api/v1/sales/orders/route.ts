@@ -1,6 +1,7 @@
 import { withAuth } from '@/src/core/api/handler';
 import { paginated, created } from '@/src/core/api/response';
 import { prisma } from '@/src/core/db/client';
+import { nextDocumentNumber } from '@/src/core/integration/numbering';
 import { z } from 'zod';
 
 const createOrderSchema = z.object({
@@ -17,8 +18,9 @@ const createOrderSchema = z.object({
 });
 
 async function nextOrderNumber(tenantId: number): Promise<string> {
-  const count = await (prisma as any).salesOrder.count({ where: { tenantId } });
-  return `SO-${String(count + 1).padStart(4, '0')}`;
+  return nextDocumentNumber(prisma as any, tenantId, 'SO', {
+    prefix: 'SO-', pad: 4, seed: () => (prisma as any).salesOrder.count({ where: { tenantId } }),
+  });
 }
 
 export const GET = withAuth(

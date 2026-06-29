@@ -3,6 +3,7 @@ import { ok } from '@/src/core/api/response';
 import { ApiError } from '@/src/core/api/errors';
 import { prisma } from '@/src/core/db/client';
 import { decrementStockForSale, recordCOGS, notifyLowStock, postARInvoice } from '@/src/core/integration/postings';
+import { nextDocumentNumber } from '@/src/core/integration/numbering';
 import { z } from 'zod';
 
 const updateSchema = z.object({
@@ -87,8 +88,9 @@ export const PATCH = withAuth(
       const amount = Number(updated.totalAmount) || 0;
       try {
         const p = prisma as any;
-        const count = await p.aRInvoice.count({ where: { tenantId } });
-        const invoiceNumber = 'INV-' + String(count + 1).padStart(5, '0');
+        const invoiceNumber = await nextDocumentNumber(p, tenantId, 'INV', {
+          prefix: 'INV-', pad: 5, seed: () => p.aRInvoice.count({ where: { tenantId } }),
+        });
         const issueDate = new Date();
         const dueDate = new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
         const invoice = await p.aRInvoice.create({

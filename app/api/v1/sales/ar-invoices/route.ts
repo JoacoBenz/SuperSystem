@@ -2,6 +2,7 @@ import { withAuth } from '@/src/core/api/handler';
 import { paginated, created } from '@/src/core/api/response';
 import { ApiError } from '@/src/core/api/errors';
 import { prisma } from '@/src/core/db/client';
+import { nextDocumentNumber } from '@/src/core/integration/numbering';
 import { z } from 'zod';
 
 const p = prisma as any;
@@ -71,8 +72,9 @@ export const POST = withAuth(
 
     const subtotal = b.items.reduce((s: number, i: any) => s + i.quantity * i.unitPrice, 0);
     const total = subtotal + (b.taxAmount ?? 0);
-    const count = await p.aRInvoice.count({ where: { tenantId } });
-    const invoiceNumber = 'INV-' + String(count + 1).padStart(5, '0');
+    const invoiceNumber = await nextDocumentNumber(p, tenantId, 'INV', {
+      prefix: 'INV-', pad: 5, seed: () => p.aRInvoice.count({ where: { tenantId } }),
+    });
     const issueDate = new Date();
     const dueDate = b.dueDate ? new Date(b.dueDate) : new Date(issueDate.getTime() + 30 * 24 * 60 * 60 * 1000);
 

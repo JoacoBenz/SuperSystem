@@ -2,6 +2,7 @@ import { withAuth } from '@/src/core/api/handler';
 import { paginated, created } from '@/src/core/api/response';
 import { apiError } from '@/src/core/api/errors';
 import { prisma } from '@/src/core/db/client';
+import { nextDocumentNumber } from '@/src/core/integration/numbering';
 import { z } from 'zod';
 
 const journalLineSchema = z.object({
@@ -68,8 +69,9 @@ export const POST = withAuth(
       return apiError('VALIDATION_ERROR', `Journal entry must balance: debits (${totalDebit}) ≠ credits (${totalCredit})`, 422);
     }
 
-    const count = await (prisma as any).journalEntry.count({ where: { tenantId } });
-    const entryNumber = 'JE-' + String(count + 1).padStart(5, '0');
+    const entryNumber = await nextDocumentNumber(prisma as any, tenantId, 'JE', {
+      prefix: 'JE-', pad: 5, seed: () => (prisma as any).journalEntry.count({ where: { tenantId } }),
+    });
 
     const journalEntry = await (prisma as any).journalEntry.create({
       data: {
