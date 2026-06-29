@@ -20,11 +20,13 @@ interface SalesOrder {
 }
 
 interface Customer { id: number; name: string; }
+interface Product { id: number; sku: string; name: string; salePrice: number | null; }
 
 export default function SalesOrdersPage() {
   const { message } = App.useApp();
   const [orders, setOrders] = useState<SalesOrder[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [modalOpen, setModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -49,6 +51,10 @@ export default function SalesOrdersPage() {
     fetch('/api/v1/sales/customers?limit=100')
       .then(r => r.json())
       .then(d => setCustomers(d.data ?? []))
+      .catch(() => {});
+    fetch('/api/v1/inventory/products?limit=200')
+      .then(r => r.json())
+      .then(d => setProducts(d.data ?? []))
       .catch(() => {});
   }, []);
 
@@ -152,19 +158,36 @@ export default function SalesOrdersPage() {
                 <>
                   {fields.map(({ key, name }) => (
                     <Row key={key} gutter={8} style={{ marginBottom: 8 }} align="middle">
-                      <Col span={10}>
+                      <Col span={7}>
+                        <Form.Item name={[name, 'productId']} noStyle>
+                          <Select
+                            showSearch allowClear placeholder="Product (optional)"
+                            options={products.map(p => ({ value: p.id, label: `${p.sku} — ${p.name}` }))}
+                            filterOption={(input, opt) => (opt?.label as string ?? '').toLowerCase().includes(input.toLowerCase())}
+                            onChange={(val) => {
+                              const prod = products.find(p => p.id === val);
+                              if (prod) form.setFields([
+                                { name: ['items', name, 'description'], value: prod.name },
+                                { name: ['items', name, 'unitPrice'], value: prod.salePrice ?? 0 },
+                              ]);
+                            }}
+                            style={{ width: '100%' }}
+                          />
+                        </Form.Item>
+                      </Col>
+                      <Col span={7}>
                         <Form.Item name={[name, 'description']} noStyle rules={[{ required: true }]}>
                           <Input placeholder="Description" />
                         </Form.Item>
                       </Col>
-                      <Col span={5}>
+                      <Col span={4}>
                         <Form.Item name={[name, 'quantity']} noStyle rules={[{ required: true }]}>
                           <InputNumber min={0.01} placeholder="Qty" style={{ width: '100%' }} />
                         </Form.Item>
                       </Col>
-                      <Col span={7}>
+                      <Col span={4}>
                         <Form.Item name={[name, 'unitPrice']} noStyle rules={[{ required: true }]}>
-                          <InputNumber min={0.01} precision={2} placeholder="Unit price" prefix="$" style={{ width: '100%' }} />
+                          <InputNumber min={0.01} precision={2} placeholder="Price" prefix="$" style={{ width: '100%' }} />
                         </Form.Item>
                       </Col>
                       <Col span={2}>

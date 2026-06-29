@@ -11,6 +11,7 @@ const createOrderSchema = z.object({
     description: z.string().min(1).max(500),
     quantity: z.number().positive(),
     unitPrice: z.number().positive(),
+    productId: z.number().int().positive().optional(),
     notes: z.string().optional(),
   })).min(1),
 });
@@ -86,6 +87,7 @@ export const POST = withAuth(
             quantity: i.quantity,
             unitPrice: i.unitPrice,
             totalPrice: i.quantity * i.unitPrice,
+            productId: i.productId ?? null,
             notes: i.notes ?? null,
           })),
         },

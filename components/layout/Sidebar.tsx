@@ -157,6 +157,7 @@ export function Sidebar({ collapsed, orgRole }: SidebarProps) {
 
   const inventoryChildren = [
     { key: '/inventory', icon: <BarChartOutlined />, label: 'Stock Levels' },
+    { key: '/inventory/products', icon: <AppstoreOutlined />, label: 'Products' },
     { key: '/inventory/entries', icon: <InboxOutlined />, label: 'Reception History' },
     { key: '/inventory/adjustments', icon: <EditOutlined />, label: 'Adjustments' },
   ];

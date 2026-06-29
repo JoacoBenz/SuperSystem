@@ -114,6 +114,7 @@ export const PATCH = withAuth(
                 quantity: Number(i.quantity),
                 unitPrice: Number(i.unitPrice),
                 lineTotal: Number(i.totalPrice),
+                productId: i.productId ?? null,
               })),
             },
           },

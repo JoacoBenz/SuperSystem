@@ -8,6 +8,7 @@ model StockEntry {
   unit                  String   @default("units") @db.VarChar(50)
   unitCost              Decimal? @map("unit_cost") @db.Decimal(15, 2)
   vendorId              Int?     @map("vendor_id")
+  productId             Int?     @map("product_id")
   conforming            Boolean  @default(true)
   notes                 String?
   receivedAt            DateTime @default(now()) @map("received_at")
@@ -16,5 +17,6 @@ model StockEntry {
 
   @@index([tenantId, receptionId])
   @@index([tenantId, purchaseRequestItemId])
+  @@index([tenantId, productId])
   @@map("stock_entries")
 }

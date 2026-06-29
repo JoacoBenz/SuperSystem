@@ -19,4 +19,10 @@ export const inventoryNavigation: NavigationItem[] = [
     icon: 'EditOutlined',
     requiredPermissions: ['inventory.stock_adjustment.read'],
   },
+  {
+    key: '/inventory/products',
+    label: 'Products',
+    icon: 'AppstoreOutlined',
+    requiredPermissions: ['inventory.product.read'],
+  },
 ];

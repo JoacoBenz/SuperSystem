@@ -2,6 +2,7 @@ model StockAdjustment {
   id          Int      @id @default(autoincrement())
   tenantId    Int      @map("tenant_id")
   description String   @db.VarChar(255)
+  productId   Int?     @map("product_id")
   quantity    Decimal  @db.Decimal(10, 2)
   unit        String   @default("units") @db.VarChar(50)
   reason      String   @db.VarChar(500)
@@ -11,4 +12,5 @@ model StockAdjustment {
 
   @@map("stock_adjustments")
   @@index([tenantId])
+  @@index([tenantId, productId])
 }

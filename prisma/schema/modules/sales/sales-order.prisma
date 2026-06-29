@@ -30,6 +30,7 @@ model SalesOrderItem {
   quantity     Decimal @db.Decimal(10, 2)
   unitPrice    Decimal @map("unit_price") @db.Decimal(15, 2)
   totalPrice   Decimal @map("total_price") @db.Decimal(15, 2)
+  productId    Int?    @map("product_id")
   notes        String? @db.Text
   createdAt    DateTime @default(now()) @map("created_at")
 

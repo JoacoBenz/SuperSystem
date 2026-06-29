@@ -38,6 +38,7 @@ model APInvoiceLine {
   quantity    Decimal  @db.Decimal(10, 2)
   unitCost    Decimal  @map("unit_cost") @db.Decimal(15, 2)
   lineTotal   Decimal  @map("line_total") @db.Decimal(15, 2)
+  productId   Int?     @map("product_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
   invoice     APInvoice @relation(fields: [apInvoiceId], references: [id], onDelete: Cascade)
