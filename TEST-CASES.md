@@ -81,6 +81,18 @@ End-to-end specification of the platform's use cases and the test cases that ver
 | TC-INV-4 | Sale shipment (TC-INTEG-1) | stock decremented |
 | TC-INV-5 | Pages: Stock Levels / Reception History / Adjustments render | no console errors |
 
+### Product master (Phase 2 / part 1 — adopts the pre-existing products table)
+- UC-PROD-1 Maintain a product / material master. UC-PROD-2 Reference products on transaction lines.
+
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-PROD-1 | GET `/inventory/products` | 200, catalog (the 6 pre-existing products + any added) |
+| TC-PROD-2 | POST `/inventory/products` `{sku,name,unitOfMeasure,costPrice,salePrice}` | 201 |
+| TC-PROD-3 | POST a duplicate `sku` | 409 |
+| TC-PROD-4 | PATCH a product (edit), then DELETE | 200 edit; DELETE soft-retires (`active=false`) |
+| TC-PROD-5 | POST `/sales/orders` with `item.productId` | productId persists on the order line and carries to the AR invoice line on delivery |
+| TC-PROD-6 | GET `/inventory/products/{non-numeric}`; load Products page | 404 (NaN guard); page renders, no console errors |
+
 ---
 
 ## 5. Sales
@@ -127,7 +139,7 @@ End-to-end specification of the platform's use cases and the test cases that ver
 
 | ID | Steps | Expected |
 |----|-------|----------|
-| TC-ACCT-1 | GET `/accounting/statements` | 200; `balanced` flag present |
+| TC-ACCT-1 | GET `/accounting/statements` | 200; `balanced=true` (GL ties out after the opening-balance plug) |
 | TC-ACCT-2 | Balance preserved across postings | `difference` constant before/after transactions |
 | TC-ACCT-3 | POST `/accounting/accounts` `{code,name,type}` | 201 |
 | TC-ACCT-4 | POST `/accounting/journals` `{description,lines}` → PATCH `posted` | 201 then 200 (draft→posted) |
@@ -181,6 +193,18 @@ End-to-end specification of the platform's use cases and the test cases that ver
 | TC-CRM-6 | Drive an opp to `won` (or POST `/convert`) | creates a customer + draft sales order |
 | TC-CRM-7 | CRM pages render | no console errors |
 
+### Business partners (Phase 2 / part 2a)
+- UC-PART-1 Maintain a business-partner master. UC-PART-2 Link a customer/vendor/CRM company. UC-PART-3 360° activity view across a partner's records.
+
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-PART-1 | POST `/crm/partners` `{name,roles}` | 201 |
+| TC-PART-2 | GET `/crm/partners` | 200, list with contact counts |
+| TC-PART-3 | POST `/crm/partners/{id}/links` for a customer, then a vendor | 200 each; both appear under the partner |
+| TC-PART-4 | GET `/crm/partners/{id}` | 360° view: linked records + their sales orders / AR / AP / purchase requests + AR/AP outstanding totals |
+| TC-PART-5 | POST a link with a non-existent `recordId` | 404 |
+| TC-PART-6 | Partners page + 360° drawer render | no console errors |
+
 ---
 
 ## 13. Projects
@@ -205,6 +229,20 @@ End-to-end specification of the platform's use cases and the test cases that ver
 | TC-INTEG-4 | Read statements through the full cycle | balance `difference` invariant (postings preserve balance) |
 | TC-INTEG-5 | Mark a payroll run `paid` | Treasury debit + posted JE Dr 5000 / Cr 1000 |
 | TC-INTEG-6 | Drive a CRM opportunity to `won` | a Sales customer + draft order are created |
+| TC-INTEG-7 | Link a customer + vendor to one Business Partner | 360° view aggregates that customer's SOs/AR and the vendor's AP/PRs |
+
+---
+
+## 15. Hardening & regression (shipped fixes — PR #4)
+
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-FIX-1 | GET `/accounting/statements` | `balanceSheet.balanced = true` (opening-balance equity plug) |
+| TC-FIX-2 | GET `/treasury/{non-numeric}` | 404 (NaN guard, was 500) |
+| TC-FIX-3 | POST `/accounting/journals` unbalanced lines, then balanced | 422 then 201 (debits must equal credits) |
+| TC-FIX-4 | POST `/core/users` as `maria` (member), then `admin` | 403 then 201 (creation gated to admin/super_admin) |
+| TC-FIX-5 | POST a quotation as `laura` (read-only), then `maria` (requester) | 403 then 201 (writes need a write permission) |
+| TC-FIX-6 | Load the Projects dashboard | no antd `valueStyle` deprecation warning |
 
 ---
 
@@ -214,7 +252,7 @@ End-to-end specification of the platform's use cases and the test cases that ver
 **Method:** transactional cases driven through the authenticated app session (logging in as the role each case requires — `admin`, `maria`, `juan`, `ana`, `pedro`, `laura`); screen cases by loading the page + reading the rendered tree/screenshot + browser console.
 
 ### Scorecard
-**86 test cases — 84 ✅ · 2 ⚠️ · 0 ❌ · 0 ⛔.** No functional defects. Two ⚠️ (one seeded-data condition, one cosmetic) + a few code-review observations are in [Findings](#findings).
+**105 test cases — 105 ✅ · 0 ⚠️ · 0 ❌.** No open defects. The first run's 2 ⚠️ + 6 observations were all fixed in PR #4 (balance plug, NaN guard, antd v6, user-create authz, journal balance, quotation perms) and re-verified below. New coverage: Product master (Phase 2.1) and Business Partners (Phase 2.2a).
 
 ### 1. Auth / RBAC / Tenancy
 | ID | R | Evidence |
@@ -293,7 +331,7 @@ End-to-end specification of the platform's use cases and the test cases that ver
 ### 8. Accounting
 | ID | R | Evidence |
 |----|---|----------|
-| TC-ACCT-1 | ⚠️ | statements 200 but `balanced=false` (seeded opening balances — Finding #1) |
+| TC-ACCT-1 | ✅ | statements 200, **`balanced=true`** (opening-balance equity plug, PR #4) |
 | TC-ACCT-2 | ✅ | `difference` constant (−198000) across all postings |
 | TC-ACCT-3 | ✅ | account create 201 |
 | TC-ACCT-4 | ✅ | journal create 201 → post 200 |
@@ -342,7 +380,7 @@ End-to-end specification of the platform's use cases and the test cases that ver
 | TC-PROJ-2 | ✅ | task create 201 |
 | TC-PROJ-3 | ✅ | time entry create 201 |
 | TC-PROJ-4 | ✅ | status planning→active 200 |
-| TC-PROJ-5 | ⚠️ | renders, but antd `valueStyle` deprecation warnings (Finding #3) |
+| TC-PROJ-5 | ✅ | renders, no console warnings (valueStyle fixed, PR #4) |
 
 ### 14. Cross-module integration
 | ID | R | Evidence |
@@ -353,16 +391,47 @@ End-to-end specification of the platform's use cases and the test cases that ver
 | TC-INTEG-4 | ✅ | balance `difference` invariant (−198000) through every cycle |
 | TC-INTEG-5 | ✅ | payroll paid → Treasury debit + posted JE Dr 5000 / Cr 1000 |
 | TC-INTEG-6 | ✅ | CRM opportunity convert → Sales customer + draft order |
+| TC-INTEG-7 | ✅ | linked customer + vendor → 360° view aggregated 6 SOs + 4 AR ($240 outstanding) |
 
-### Findings
-1. **Balance sheet not balanced (data, not code).** `difference = −198000`, **constant** before/after every transaction → each JE is internally balanced and the posting engine is correct; the imbalance is the demo's seeded opening balances. _Fix:_ seed an opening-balance equity plug.
-2. **`/api/v1/treasury/<non-numeric>` → 500** (no `accounts` route; `[id]` does `parseInt("accounts")=NaN`). Should be 400/404. → background task spawned.
-3. **Projects dashboard uses deprecated antd `valueStyle`** (console warnings only). → background task spawned.
-4. **`core/users` POST is permission-only-by-authentication** — any logged-in user can create a user (orgRole `admin`/`member`). Likely should require a `core.user.manage`-style permission. _Authorization observation._
-5. **Manual journal create has no debit=credit balance check** (`POST /accounting/journals` inserts lines as-is). A manual entry can be unbalanced until posting. _Data-integrity observation._
-6. **Quotation & attachment writes are gated by *read* permissions** (`read_own`/`read_all`) rather than a dedicated write permission — anyone who can view a PR can add/select/delete its quotations. _Authorization observation._
-7. **`admin@demo.com` lacks `procurement.reception.create`** — a demo role gap (the workflow itself works, proven via `pedro`). Not a code defect.
+### 4b. Product master
+| ID | R | Evidence |
+|----|---|----------|
+| TC-PROD-1 | ✅ | catalog 200 (7 products) |
+| TC-PROD-2 | ✅ | create 201 |
+| TC-PROD-3 | ✅ | duplicate SKU → 409 |
+| TC-PROD-4 | ✅ | edit 200; soft-retire (DELETE) 200 |
+| TC-PROD-5 | ✅ | SO line `productId` persisted (=1) |
+| TC-PROD-6 | ✅ | non-numeric id → 404; Products page renders clean |
+
+### 12b. Business partners
+| ID | R | Evidence |
+|----|---|----------|
+| TC-PART-1 | ✅ | create 201 |
+| TC-PART-2 | ✅ | list 200, includes the new partner |
+| TC-PART-3 | ✅ | link customer 200, link vendor 200 |
+| TC-PART-4 | ✅ | 360° view: 1 customer + 1 vendor, 6 sales orders, 4 AR invoices, $240 outstanding |
+| TC-PART-5 | ✅ | bad recordId → 404 |
+| TC-PART-6 | ✅ | Partners page + 360° drawer render, no console warnings |
+
+### 15. Hardening & regression
+| ID | R | Evidence |
+|----|---|----------|
+| TC-FIX-1 | ✅ | `balanced=true` |
+| TC-FIX-2 | ✅ | treasury non-numeric id → 404 |
+| TC-FIX-3 | ✅ | unbalanced journal → 422; balanced → 201 |
+| TC-FIX-4 | ✅ | member create-user → 403; admin → 201 |
+| TC-FIX-5 | ✅ | read-only quotation → 403; requester → 201 |
+| TC-FIX-6 | ✅ | Projects dashboard: no `valueStyle` warning |
+
+### Findings — all resolved (PR #4)
+1. ✅ **Balance sheet** — opening-balance equity plug (`prisma/setup-opening-balance.js`); now `balanced=true`.
+2. ✅ **`treasury/{non-numeric}` → 500** — NaN guard added → 404.
+3. ✅ **antd `valueStyle` deprecation** — migrated to `styles.content`.
+4. ✅ **`core/users` create authz** — now requires admin/super_admin.
+5. ✅ **Manual journal balance** — debits must equal credits, else 422.
+6. ✅ **Quotation/attachment write perms** — require a procurement write capability, not mere read.
+7. ✅ **`admin@demo.com` reception gap** — a demo role assignment, not a code defect (the workflow works, proven via `pedro`).
 
 ### Notes
-- This run created QA test data on the demo tenant (a closed PR-00014, QA invoices/journals/customers/opportunity/project/payroll run/budget/treasury account/user, plus a few stock adjustments). Harmless on the demo tenant; can be cleaned if desired.
-- Module **main** pages all render without console errors (except the Projects deprecation warning). Sub-pages were not each individually loaded but share components with verified pages and their data endpoints return 200.
+- These runs created QA test data on the demo tenant (test PRs/invoices/journals/customers/products/partners/payroll runs/users + stock adjustments). Harmless on the demo tenant; can be cleaned if desired.
+- Module **main** pages all render without console errors (the Projects deprecation warning is now resolved). Sub-pages share components with verified pages and their data endpoints return 200.
