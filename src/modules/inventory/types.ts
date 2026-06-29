@@ -23,6 +23,7 @@ export interface CreateStockEntryInput {
   unit: string;
   unitCost?: number | null;
   vendorId?: number | null;
+  productId?: number | null;
   conforming: boolean;
   notes?: string | null;
 }

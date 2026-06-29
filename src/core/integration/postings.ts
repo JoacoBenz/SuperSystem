@@ -16,7 +16,7 @@ import { NotificationService } from '@/src/core/notifications/notification.servi
 type Db = { stockEntry: any; stockAdjustment: any; bankAccount: any; bankTransaction: any; chartOfAccount: any; journalEntry: any; journalLine: any };
 const db = prisma as unknown as Db;
 
-interface SoldItem { description: string; quantity: number | string; unit?: string | null }
+interface SoldItem { description: string; quantity: number | string; unit?: string | null; productId?: number | null }
 
 /** Decrease inventory for items leaving on a sales shipment (negative stock adjustments). */
 export async function decrementStockForSale(tenantId: number, userId: number, items: SoldItem[], reference: string): Promise<number> {
@@ -24,14 +24,16 @@ export async function decrementStockForSale(tenantId: number, userId: number, it
   for (const it of items) {
     const qty = Math.abs(Number(it.quantity) || 0);
     if (qty <= 0) continue;
-    // Match the unit of existing stock for this description so the movement lands on the right line.
+    // Match the unit of existing stock so the movement lands on the right line — keyed on
+    // the product master when known, else on the free-text description.
     let unit = it.unit ?? null;
     if (!unit) {
-      const existing = await db.stockEntry.findFirst({ where: { tenantId, description: it.description }, select: { unit: true } });
+      const where = it.productId ? { tenantId, productId: it.productId } : { tenantId, description: it.description };
+      const existing = await db.stockEntry.findFirst({ where, select: { unit: true } });
       unit = existing?.unit ?? 'units';
     }
     await db.stockAdjustment.create({
-      data: { tenantId, description: it.description, quantity: -qty, unit, reason: `Sales shipment — ${reference}`, createdBy: userId },
+      data: { tenantId, description: it.description, productId: it.productId ?? null, quantity: -qty, unit, reason: `Sales shipment — ${reference}`, createdBy: userId },
     });
     count++;
   }
@@ -129,7 +131,9 @@ export async function recordCOGS(tenantId: number, userId: number, items: SoldIt
     const qty = Math.abs(Number(it.quantity) || 0);
     if (qty <= 0) continue;
     const entry = await p.stockEntry.findFirst({
-      where: { tenantId, description: it.description, unitCost: { not: null } },
+      where: it.productId
+        ? { tenantId, productId: it.productId, unitCost: { not: null } }
+        : { tenantId, description: it.description, unitCost: { not: null } },
       orderBy: { receivedAt: 'desc' },
       select: { unitCost: true },
     });

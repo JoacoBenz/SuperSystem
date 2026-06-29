@@ -137,6 +137,7 @@ export const POST = withAuth(
             unit: prItem?.unit ?? 'units',
             unitCost: prItem?.estimatedPrice ? Number(prItem.estimatedPrice) : null,
             vendorId: (pr as any).vendorId ?? null,
+            productId: prItem?.productId ?? null,
             conforming: item.conforming,
             notes: item.notes ?? null,
           };

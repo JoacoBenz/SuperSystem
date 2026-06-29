@@ -16,10 +16,12 @@ export default function NewPurchaseRequestPage() {
   const [loading, setLoading] = useState<'draft' | 'submit' | null>(null);
   const [vendors, setVendors] = useState<any[]>([]);
   const [costCenters, setCostCenters] = useState<any[]>([]);
+  const [products, setProducts] = useState<any[]>([]);
 
   useEffect(() => {
     fetch('/api/v1/procurement/vendors?active=true&limit=100').then(r => r.json()).then(d => setVendors(d.data ?? [])).catch(() => {});
     fetch('/api/v1/procurement/cost-centers?active=true&limit=100').then(r => r.json()).then(d => setCostCenters(d.data ?? [])).catch(() => {});
+    fetch('/api/v1/inventory/products?limit=200').then(r => r.json()).then(d => setProducts(d.data ?? [])).catch(() => {});
   }, []);
 
   async function handleSubmit(action: 'draft' | 'submit') {
@@ -103,6 +105,21 @@ export default function NewPurchaseRequestPage() {
               <>
                 {fields.map(({ key, name, ...restField }) => (
                   <Space key={key} align="baseline" style={{ display: 'flex', marginBottom: 8 }} wrap>
+                    <Form.Item {...restField} name={[name, 'productId']}>
+                      <Select
+                        allowClear showSearch placeholder="Product (optional)" style={{ width: 200 }}
+                        optionFilterProp="label"
+                        options={products.map(p => ({ value: p.id, label: `${p.sku} — ${p.name}` }))}
+                        onChange={(val) => {
+                          const prod = products.find(p => p.id === val);
+                          if (prod) form.setFields([
+                            { name: ['items', name, 'description'], value: prod.name },
+                            { name: ['items', name, 'unit'], value: prod.unitOfMeasure },
+                            { name: ['items', name, 'estimatedPrice'], value: prod.costPrice ?? undefined },
+                          ]);
+                        }}
+                      />
+                    </Form.Item>
                     <Form.Item {...restField} name={[name, 'description']} rules={[{ required: true, message: 'Required' }]}>
                       <Input placeholder="Item description" style={{ width: 250 }} />
                     </Form.Item>

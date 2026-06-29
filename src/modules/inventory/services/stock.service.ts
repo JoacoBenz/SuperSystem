@@ -29,6 +29,7 @@ export class StockService {
           unit: item.unit,
           unitCost: item.unitCost ?? null,
           vendorId: item.vendorId ?? null,
+          productId: item.productId ?? null,
           conforming: item.conforming,
           notes: item.notes ?? null,
           createdBy: this.userId,

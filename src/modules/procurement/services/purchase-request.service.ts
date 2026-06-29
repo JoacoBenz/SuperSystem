@@ -122,6 +122,7 @@ export class PurchaseRequestService {
             unit: item.unit,
             estimatedPrice: item.estimatedPrice ? Number(item.estimatedPrice) : null,
             productUrl: item.productUrl ?? null,
+            productId: item.productId ?? null,
           })),
         },
       } as any,

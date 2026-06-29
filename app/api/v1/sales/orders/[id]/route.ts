@@ -70,7 +70,7 @@ export const PATCH = withAuth(
       try {
         const lines = await decrementStockForSale(
           tenantId, userId,
-          (order.items ?? []).map((i: any) => ({ description: i.description, quantity: Number(i.quantity) })),
+          (order.items ?? []).map((i: any) => ({ description: i.description, quantity: Number(i.quantity), productId: i.productId ?? null })),
           ref,
         );
         if (lines > 0) {
@@ -121,7 +121,7 @@ export const PATCH = withAuth(
         });
         const posted = await postARInvoice(tenantId, userId, { invoiceNumber, total: amount });
         // Cost of goods sold → Dr COGS / Cr Inventory (keeps margin + inventory value real)
-        await recordCOGS(tenantId, userId, (order.items ?? []).map((i: any) => ({ description: i.description, quantity: Number(i.quantity) })), invoiceNumber);
+        await recordCOGS(tenantId, userId, (order.items ?? []).map((i: any) => ({ description: i.description, quantity: Number(i.quantity), productId: i.productId ?? null })), invoiceNumber);
         await ctx.audit.log({ action: 'create', resource: 'ar_invoice', resourceId: invoice.id, moduleId: 'sales', eventType: 'workflow', newData: { via: 'sales_delivered', order: ref, invoiceNumber, amount, accounting: posted } });
       } catch { /* AR/accounting not set up — non-fatal */ }
     }

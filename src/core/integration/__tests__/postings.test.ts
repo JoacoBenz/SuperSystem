@@ -287,3 +287,30 @@ describe('postInvoicePayment', () => {
     expect(await postInvoicePayment(T, U, { kind: 'AR', amount: 0, reference: 'X' })).toBe(false);
   });
 });
+
+describe('productId re-keying (Phase 2.2b)', () => {
+  it('decrementStockForSale keys the lookup + adjustment on productId when present', async () => {
+    mockPrisma.stockEntry = { findFirst: vi.fn().mockResolvedValue({ unit: 'box' }) };
+    mockPrisma.stockAdjustment = { create: vi.fn().mockResolvedValue({}) };
+    const n = await decrementStockForSale(T, U, [{ description: 'Pens', quantity: 3, productId: 7 }], 'SO-9');
+    expect(n).toBe(1);
+    expect(mockPrisma.stockEntry.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { tenantId: T, productId: 7 } }));
+    expect(mockPrisma.stockAdjustment.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ productId: 7, quantity: -3, unit: 'box' }) }));
+  });
+
+  it('decrementStockForSale falls back to description when no productId', async () => {
+    mockPrisma.stockEntry = { findFirst: vi.fn().mockResolvedValue({ unit: 'units' }) };
+    mockPrisma.stockAdjustment = { create: vi.fn().mockResolvedValue({}) };
+    await decrementStockForSale(T, U, [{ description: 'Pens', quantity: 1 }], 'SO-9');
+    expect(mockPrisma.stockEntry.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { tenantId: T, description: 'Pens' } }));
+  });
+
+  it('recordCOGS values items by productId when present', async () => {
+    mockPrisma.stockEntry = { findFirst: vi.fn().mockResolvedValue({ unitCost: 5 }) };
+    mockPrisma.chartOfAccount = { findFirst: vi.fn().mockResolvedValue({ id: 1 }), findMany: vi.fn().mockResolvedValue([{ id: 51, code: '5100', type: 'expense' }, { id: 12, code: '1200', type: 'asset' }]), update: vi.fn().mockResolvedValue({}), create: vi.fn() };
+    mockPrisma.journalEntry = { count: vi.fn().mockResolvedValue(0), create: vi.fn().mockResolvedValue({ id: 8 }) };
+    mockPrisma.journalLine = { create: vi.fn().mockResolvedValue({}) };
+    expect(await recordCOGS(T, U, [{ description: 'Widget', quantity: 2, productId: 7 }], 'SO-1')).toBe(true);
+    expect(mockPrisma.stockEntry.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { tenantId: T, productId: 7, unitCost: { not: null } } }));
+  });
+});

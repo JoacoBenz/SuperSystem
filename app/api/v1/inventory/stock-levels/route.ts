@@ -7,29 +7,33 @@ export const GET = withAuth(
   async (request, ctx) => {
     const tenantId = ctx.session.tenantId;
 
-    // Aggregate: entries from receptions (conforming only) + adjustments
+    // Aggregate stock keyed on the product master when present, else the free-text
+    // description. Entries from receptions (conforming only) + adjustments.
     const [entries, adjustments] = await Promise.all([
       prisma.stockEntry.groupBy({
-        by: ['description', 'unit'],
+        by: ['productId', 'description', 'unit'],
         where: { tenantId, conforming: true },
         _sum: { quantity: true },
         _max: { receivedAt: true },
         _count: { id: true },
       }),
       prisma.stockAdjustment.groupBy({
-        by: ['description', 'unit'],
+        by: ['productId', 'description', 'unit'],
         where: { tenantId },
         _sum: { quantity: true },
         _max: { createdAt: true },
       }),
     ]);
 
-    // Merge by description+unit
-    const map = new Map<string, { description: string; unit: string; receptionQty: number; adjustmentQty: number; lastUpdated: Date | null; receptionCount: number }>();
+    type Row = { productId: number | null; description: string; unit: string; receptionQty: number; adjustmentQty: number; lastUpdated: Date | null; receptionCount: number };
+    const map = new Map<string, Row>();
+    // Product-linked rows merge across descriptions; free-text rows key on description+unit.
+    const keyOf = (r: { productId: number | null; description: string; unit: string }) =>
+      r.productId ? `p:${r.productId}` : `d:${r.description}|${r.unit}`;
 
-    for (const e of entries) {
-      const key = e.description + '|' + e.unit;
-      map.set(key, {
+    for (const e of entries as any[]) {
+      map.set(keyOf(e), {
+        productId: e.productId ?? null,
         description: e.description,
         unit: e.unit,
         receptionQty: Number(e._sum.quantity ?? 0),
@@ -39,37 +43,40 @@ export const GET = withAuth(
       });
     }
 
-    for (const a of adjustments) {
-      const key = a.description + '|' + a.unit;
-      const existing = map.get(key);
+    for (const a of adjustments as any[]) {
+      const key = keyOf(a);
       const adjQty = Number(a._sum.quantity ?? 0);
       const adjDate = a._max.createdAt ?? null;
+      const existing = map.get(key);
       if (existing) {
         existing.adjustmentQty += adjQty;
-        if (adjDate && (!existing.lastUpdated || adjDate > existing.lastUpdated)) {
-          existing.lastUpdated = adjDate;
-        }
+        if (adjDate && (!existing.lastUpdated || adjDate > existing.lastUpdated)) existing.lastUpdated = adjDate;
       } else {
-        map.set(key, {
-          description: a.description,
-          unit: a.unit,
-          receptionQty: 0,
-          adjustmentQty: adjQty,
-          lastUpdated: adjDate,
-          receptionCount: 0,
-        });
+        map.set(key, { productId: a.productId ?? null, description: a.description, unit: a.unit, receptionQty: 0, adjustmentQty: adjQty, lastUpdated: adjDate, receptionCount: 0 });
       }
     }
 
-    const levels = Array.from(map.values()).map(v => ({
-      description: v.description,
-      unit: v.unit,
-      totalQuantity: v.receptionQty + v.adjustmentQty,
-      receptionQuantity: v.receptionQty,
-      adjustmentQuantity: v.adjustmentQty,
-      receptionCount: v.receptionCount,
-      lastUpdated: v.lastUpdated,
-    })).sort((a, b) => a.description.localeCompare(b.description));
+    // Resolve product names/SKUs for the product-linked rows.
+    const productIds = [...new Set([...map.values()].map(v => v.productId).filter((x): x is number => x != null))];
+    const products = productIds.length
+      ? await (prisma as any).product.findMany({ where: { tenantId, id: { in: productIds } }, select: { id: true, name: true, sku: true } })
+      : [];
+    const prodMap = new Map<number, { name: string; sku: string }>(products.map((p: any) => [p.id, p]));
+
+    const levels = Array.from(map.values()).map(v => {
+      const prod = v.productId != null ? prodMap.get(v.productId) : null;
+      return {
+        productId: v.productId,
+        sku: prod?.sku ?? null,
+        description: prod ? prod.name : v.description,
+        unit: v.unit,
+        totalQuantity: v.receptionQty + v.adjustmentQty,
+        receptionQuantity: v.receptionQty,
+        adjustmentQuantity: v.adjustmentQty,
+        receptionCount: v.receptionCount,
+        lastUpdated: v.lastUpdated,
+      };
+    }).sort((a, b) => a.description.localeCompare(b.description));
 
     return ok(levels);
   },

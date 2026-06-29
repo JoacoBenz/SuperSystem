@@ -13,6 +13,7 @@ export const createPurchaseRequestSchema = z.object({
     unit: z.string().max(50).default('units'),
     estimatedPrice: z.number().positive().optional().nullable(),
     productUrl: z.string().url().max(500).optional().nullable(),
+    productId: z.number().int().positive().optional().nullable(),
   })).min(1, 'At least one item is required'),
   action: z.enum(['draft', 'submit']).default('draft'),
 });
