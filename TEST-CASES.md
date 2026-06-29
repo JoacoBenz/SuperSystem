@@ -273,7 +273,16 @@ Built without new runtime deps: external channels use built-in `fetch`, gated on
 | TC-BANK-4 | Import a line whose reference matches a recorded (unreconciled) transaction | reconciles that transaction instead of creating a new one |
 | TC-BANK-5 | POST `/treasury/import` to a non-existent bank account | 404 |
 
-_Later (cycle 3c): document-OCR → AP draft, Mercado Pago pay-links, e-invoicing — same provider pattern with offline stubs._
+### Cycle 3c — payments, OCR, e-invoicing (provider stubs, key-gated)
+- UC-AUTO-5 Generate a customer pay-link (Mercado Pago when configured, else stub). UC-AUTO-6 OCR a vendor document → AP draft fields (Anthropic when configured, else graceful no-op). UC-AUTO-7 E-invoicing provider scaffold (no-op default).
+
+| ID | Steps | Expected |
+|----|-------|----------|
+| TC-PAY-1 | POST `/sales/ar-invoices/{id}/pay-link` | 200, `{ url, provider }` (stub link when nothing configured) |
+| TC-PAY-2 | pay-link for a non-existent invoice | 404 |
+| TC-PAY-3 | pay-link for an already-paid invoice | 400 |
+| TC-OCR-1 | POST `/procurement/ap-invoices/ocr` with no OCR provider configured | 200, `{ configured:false }` — graceful, never throws |
+| TC-OCR-2 | (unit) stub `extract` + resolver | returns `{ configured:false }`; resolver defaults to stub |
 
 ---
 
@@ -283,7 +292,7 @@ _Later (cycle 3c): document-OCR → AP draft, Mercado Pago pay-links, e-invoicin
 **Method:** transactional cases driven through the authenticated app session (logging in as the role each case requires — `admin`, `maria`, `juan`, `ana`, `pedro`, `laura`); screen cases by loading the page + reading the rendered tree/screenshot + browser console.
 
 ### Scorecard
-**116 test cases — 116 ✅ · 0 ⚠️ · 0 ❌.** No open defects. The first run's 2 ⚠️ + 6 observations were all fixed in PR #4 and re-verified below. Coverage now includes Product master (2.1), Business Partners (2.2a), productId re-keying (2.2b), and Automation cycles 3a (email-out + documents) and 3b (bank import + reconcile).
+**121 test cases — 121 ✅ · 0 ⚠️ · 0 ❌.** No open defects. The first run's 2 ⚠️ + 6 observations were all fixed in PR #4 and re-verified below. Coverage spans every module + Product master (2.1), Business Partners (2.2a), productId re-keying (2.2b), and Automation cycles 3a (email/documents), 3b (bank import/reconcile), 3c (pay-links, OCR, e-invoicing scaffold). **Phase 3 complete.**
 
 ### 1. Auth / RBAC / Tenancy
 | ID | R | Evidence |
@@ -468,6 +477,11 @@ _Later (cycle 3c): document-OCR → AP draft, Mercado Pago pay-links, e-invoicin
 | TC-BANK-3 | ✅ | re-import same CSV → **2 duplicates**, balance unchanged (idempotent) |
 | TC-BANK-4 | ✅ | line matching "PR-RUN-2026-10" **reconciled** an existing txn (no new row) |
 | TC-BANK-5 | ✅ | import to a non-existent account → 404 |
+| TC-PAY-1 | ✅ | pay-link → 200 `{ url, provider:'stub' }` |
+| TC-PAY-2 | ✅ | pay-link for a missing invoice → 404 |
+| TC-PAY-3 | ✅ | pay-link for a paid invoice → 400 |
+| TC-OCR-1 | ✅ | OCR endpoint (stub) → 200 `{ configured:false }` (graceful) |
+| TC-OCR-2 | ✅ | stub OCR + no-op tax provider unit-tested |
 
 ### Findings — all resolved (PR #4)
 1. ✅ **Balance sheet** — opening-balance equity plug (`prisma/setup-opening-balance.js`); now `balanced=true`.

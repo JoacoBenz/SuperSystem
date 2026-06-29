@@ -85,6 +85,16 @@ export default function ARInvoicesPage() {
     finally { setSubmitting(false); }
   };
 
+  const payLink = async (inv: Invoice) => {
+    try {
+      const res = await fetch(`/api/v1/sales/ar-invoices/${inv.id}/pay-link`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const d = await res.json();
+      if (!res.ok) { message.error(d?.error?.message ?? 'Failed to create pay link'); return; }
+      if (d.external) { window.open(d.url, '_blank'); message.success('Opened payment checkout'); }
+      else { try { await navigator.clipboard.writeText(d.url); } catch {} message.success(`Pay link (${d.provider}): ${d.url}`); }
+    } catch { message.error('Network error'); }
+  };
+
   const money = (v: number, c: string) => `${c} ${v.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
 
   const columns: ColumnsType<Invoice> = [
@@ -101,6 +111,7 @@ export default function ARInvoicesPage() {
           <Button size="small" onClick={() => window.open(`/api/v1/sales/ar-invoices/${inv.id}/document`, '_blank')}>Doc</Button>
           {inv.status === 'draft' && <Button size="small" type="primary" onClick={() => act(inv, 'issue')}>Issue</Button>}
           {(inv.status === 'issued') && <Button size="small" icon={<DollarOutlined />} onClick={() => { setSelected(inv); payForm.setFieldsValue({ amount: inv.outstanding, method: 'bank' }); setPayOpen(true); }}>Record Payment</Button>}
+          {inv.status === 'issued' && <Button size="small" onClick={() => payLink(inv)}>Pay Link</Button>}
           {(inv.status === 'draft' || inv.status === 'issued') && (
             <Popconfirm title="Void this invoice?" onConfirm={() => act(inv, 'void')}><Button size="small" danger>Void</Button></Popconfirm>
           )}
