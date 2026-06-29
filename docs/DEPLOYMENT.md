@@ -81,6 +81,19 @@ Supabase → **Storage → Create bucket** named to match `SUPABASE_STORAGE_BUCK
 (default `attachments`), **Private** (no public access). The app reads/writes via the
 service-role key and serves files through authenticated routes / short-lived signed URLs.
 
+## 4b. Field encryption
+The app encrypts sensitive fields (AES-256-GCM) on top of Supabase's at-rest encryption.
+1. Set `ENCRYPTION_KEY` (`openssl rand -base64 32`) in every environment. It's **required
+   in production** — the app refuses to start without it (so secrets can't silently land
+   as plaintext). Treat it like a root secret; rotating it requires re-encrypting rows.
+2. Encrypt any pre-existing rows once: `node prisma/scripts/encrypt-existing.js`
+   (idempotent). Currently covers `bank_accounts.account_number` and secret
+   `tenant_configs` values — the fields the app round-trips today.
+- Follow-up: extend the same `encryptField`/`decryptField` boundary to
+  `vendors.tax_id`/`bank_details` and `customers.tax_id` (and add them to the backfill)
+  when those routes are wired — encryption is graceful (plaintext passes through), so it
+  can roll out per-field without a flag day.
+
 ## 5. Backups & visibility
 - Enable **PITR** (or at least daily backups): Supabase → Database → Backups.
 - Run **Security Advisor** and **Performance Advisor**; capture the baseline and fix

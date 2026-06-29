@@ -11,10 +11,13 @@ const requiredSchema = z.object({
     .min(1)
     .refine((v) => v.startsWith('postgres'), 'must be a postgres connection string'),
   NEXTAUTH_SECRET: z.string().min(16, 'must be at least 16 characters'),
+  // Required so sensitive fields/secrets are actually encrypted in production rather
+  // than silently stored as plaintext (the crypto helper no-ops without a key).
+  ENCRYPTION_KEY: z.string().min(16, 'must be at least 16 characters'),
 });
 
 // Recommended in production; warned (not fatal) if absent.
-const recommendedKeys = ['DIRECT_URL', 'NEXTAUTH_URL', 'ENCRYPTION_KEY'] as const;
+const recommendedKeys = ['DIRECT_URL', 'NEXTAUTH_URL'] as const;
 
 export function validateEnv(): void {
   const isProd = process.env.NODE_ENV === 'production';

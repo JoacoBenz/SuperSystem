@@ -2,6 +2,7 @@ import { withAuth } from '@/src/core/api/handler';
 import { ok } from '@/src/core/api/response';
 import { prisma } from '@/src/core/db/client';
 import { apiError } from '@/src/core/api/errors';
+import { decryptField } from '@/src/core/crypto/field-encryption';
 import { z } from 'zod';
 
 const updateAccountSchema = z.object({
@@ -33,6 +34,7 @@ export const GET = withAuth(
 
     return ok({
       ...account,
+      accountNumber: decryptField(account.accountNumber),
       balance: Number(account.balance),
       transactions: account.transactions.map((t: any) => ({
         ...t,
@@ -68,6 +70,6 @@ export const PATCH = withAuth(
       data,
     });
 
-    return ok({ ...updated, balance: Number(updated.balance) });
+    return ok({ ...updated, accountNumber: decryptField(updated.accountNumber), balance: Number(updated.balance) });
   },
 );
