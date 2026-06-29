@@ -1,4 +1,5 @@
 import { prisma } from '@/src/core/db/client';
+import { RLS_ENABLED, setTenantGuc } from '@/src/core/db/rls';
 import { NotificationService } from '@/src/core/notifications/notification.service';
 import { nextDocumentNumber } from './numbering';
 import { recordPostingException } from './posting-exceptions';
@@ -31,8 +32,7 @@ type Client = any; // eslint-disable-line @typescript-eslint/no-explicit-any
  */
 export async function withTenantTx<T>(tenantId: number, fn: (tx: Client) => Promise<T>): Promise<T> {
   return (prisma as Client).$transaction(async (tx: Client) => {
-    // Phase C will set the RLS GUC here:
-    // await tx.$executeRawUnsafe("SELECT set_config('app.tenant_id', $1, true)", String(tenantId));
+    if (RLS_ENABLED) await setTenantGuc(tx, tenantId);
     return fn(tx);
   });
 }

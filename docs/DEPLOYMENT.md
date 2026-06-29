@@ -51,6 +51,31 @@ alter default privileges in schema public grant usage, select on sequences to ap
 ```
 Verify on a branch DB before switching production over (highest-blast-radius step).
 
+### Enabling RLS (do these together, on a branch first)
+RLS is inert until the app connects as a non-BYPASSRLS role AND the GUC is set, so the
+policies can land early. To turn it on:
+1. Apply the policies: `npx prisma migrate deploy` (includes `enable_rls`).
+2. Switch `DATABASE_URL`/`DIRECT_URL` to `app_user` (step 3 above).
+3. Set `RLS_ENABLED=true` so the app binds `app.tenant_id` per request/transaction.
+4. Verify: as `app_user`, `SET app.tenant_id='1'` then a `SELECT` only returns tenant 1;
+   with no GUC set, queries return zero rows (fail-closed).
+
+The app sets the GUC transaction-locally (`set_config(..., true)`), required under the
+transaction pooler. To roll back, set `RLS_ENABLED=false` and/or point back at the
+privileged role.
+
+**Prerequisite — route audit (C4, not yet complete).** The GUC is only set on the
+request-scoped client (`ctx.db`) and the posting transactions. ~52 route files still
+query the *global* `prisma` client (`prisma as any`); with RLS on, those queries have no
+GUC and return **zero rows** (fail-closed). Before flipping `RLS_ENABLED=true`:
+- Convert tenant-scoped routes from `(prisma as any)` to `ctx.db` so they pick up the GUC.
+- Leave deliberately cross-tenant super-admin routes (`core/overview`, `core/tenants`,
+  `core/roles`, platform dashboards) on the global client, or have them set the GUC to the
+  specific tenant they target — do NOT force them through a single-tenant client.
+- Verify every screen on a branch DB with `RLS_ENABLED=true` before production.
+This audit is mechanical but per-route; until it's done, keep `RLS_ENABLED=false` (the
+app-layer tenant filter remains the active isolation, exactly as today).
+
 ## 4. Storage bucket
 Supabase → **Storage → Create bucket** named to match `SUPABASE_STORAGE_BUCKET`
 (default `attachments`), **Private** (no public access). The app reads/writes via the
