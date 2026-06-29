@@ -1,5 +1,5 @@
 import { prisma } from '@/src/core/db/client';
-import { sendEmail } from '@/src/core/providers/email';
+import { enqueueJob } from '@/src/core/jobs/outbox';
 
 function escapeHtml(s: string): string {
   return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c] as string));
@@ -11,14 +11,18 @@ function emailHtml(title: string, message: string): string {
 export class NotificationService {
   constructor(private tenantId: number) {}
 
-  /** Best-effort outbound email mirroring an in-app notification — never throws. */
+  /**
+   * Enqueue outbound emails mirroring an in-app notification. They're drained by the
+   * cron worker rather than sent inline, so the request never blocks on SMTP/HTTP and
+   * never fails because email is slow or down. Best-effort — never throws.
+   */
   private async dispatchEmails(emails: (string | null | undefined)[], title: string, message: string): Promise<void> {
     try {
       for (const to of emails) {
-        if (to) await sendEmail(this.tenantId, { to, subject: title, html: emailHtml(title, message) });
+        if (to) await enqueueJob('email', { tenantId: this.tenantId, to, subject: title, html: emailHtml(title, message) });
       }
     } catch {
-      /* outbound email is best-effort; in-app notification already persisted */
+      /* enqueue is best-effort; in-app notification already persisted */
     }
   }
 
